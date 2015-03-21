@@ -9,8 +9,9 @@
 GSM gsmAccess(true); // include a 'true' parameter for debug enabled
 GSM_SMS sms;
 
-// char array of the telephone number to send SMS
-char remoteNumber[20]= "xx";  
+// defined in a private file
+#include <remoteNumber.h>
+char remoteNumber[20]= REMOTE_NUMBER;  // TODO: make it configurable saved on SD card
 
 // LCD=======================================================
 // initialize the library with the numbers of the interface pins
@@ -29,6 +30,7 @@ byte addr[MAX_DS1820_SENSORS][8];
 void setup(void) 
 {
   Serial.begin(9600);
+  Serial.println(remoteNumber);
   lcd.begin(LCD_WIDTH, LCD_HEIGHT,1);
   print(0, 0, "Init AquaMon");
   print(0, 1, "DS1820 Test");
@@ -126,22 +128,24 @@ void loop(void)
   print(0, 1, buf);
   sprintf(smsMsg, "%s, %s\n", smsMsg, buf);
 
+  // for tests, increasing temperature is easier...
   if((Whole > 29) || (lightLevel < 600)) {
-    sendSMS('sending');
     sendSMS(smsMsg);
   }
   delay(1000);
 }
 
 void sendSMS(char *txtMsg){
-  print(0, 0, "Sending SMS");
+  print(0, 0, "Sending SMS...");
+  print(0, 1, "To:");
+  print(4, 1, remoteNumber);
   Serial.println(txtMsg);
 
   // send the message
   sms.beginSMS(remoteNumber);
   sms.print(txtMsg);
   sms.endSMS(); 
-  print(0, 0, "SMS sent...");
+  print(0, 0, "SMS sent");
 }
 
 void print(int col, int row, char* displayMsg) {
