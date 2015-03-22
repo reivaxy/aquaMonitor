@@ -7,15 +7,22 @@
 
 // TODO : move variable declaration, it's a mess ! (use C++ ?)
 // TODO : handle SMS better (limit then, centralize handling...)
-// TODO : centralize message LCD displaying (transient IR msgs...)
+// TODO : centralize message LCD displaying (transient IR msgs...) to insure a minimum display time for all
+// IR behavior very much depends on remote control key layout...
+
 // Init IR
 int inPin = 2;
 IRrecv reception_ir(inPin);
 decode_results code;
-#define DISPLAY_PHONE_NUMBER 0xF720DF       // (R key on xanlite remote, for now)
-#define INCR_LIGHT_THRESHOLD 0xF700FF       // (light+ on xanlite remote, for now)
-#define DECR_LIGHT_THRESHOLD 0xF7807F       // (light- on xanlite remote, for now)
-#define DISPLAY_LIGHT_THRESHOLD 0x78CDA4DD  // (OFF on xanlite remote, for now)
+#define IR_DISPLAY_PHONE_NUMBER 0xF720DF       // (R key on xanlite remote, for now)
+#define IR_INCR_LIGHT_THRESHOLD 0xF700FF       // (light+ on xanlite remote, for now)
+#define IR_DECR_LIGHT_THRESHOLD 0xF7807F       // (light- on xanlite remote, for now)
+#define IR_DISPLAY_LIGHT_THRESHOLD 0xF740BF    // (OFF on xanlite remote, for now)
+#define IR_DISPLAY_TEMPERATURE_THRESHOLD 0xF7C03F    // (ON on xanlite remote, for now)
+
+// When a key is maintained pressed, a different code is sent, and we want to repeat the operation
+#define IR_REPEAT_CODE 0xFFFFFFFF
+unsigned long previousCode = 0;
 
 long lightThreshold = 500;
 
@@ -41,15 +48,15 @@ int lightPin = 0;
 OneWire  ds(6);  // on pin 6
 #define MAX_DS1820_SENSORS 2
 byte addr[MAX_DS1820_SENSORS][8];
-
+long temperatureThreshold = 26;
 
 char buf[20];
 char smsMsg[160];
 
-unsigned long temperatureCheckPeriod = 10000; // 10 seconds
+unsigned long temperatureCheckPeriod = 5000;
 unsigned long lastTemperatureCheck = millis() - temperatureCheckPeriod;
 
-unsigned long lightCheckPeriod = 20000; // 20 seconds
+unsigned long lightCheckPeriod = 5000;
 unsigned long lastLightCheck = millis() - lightCheckPeriod;
 
 unsigned long irDisplayTimeOut = 250;
@@ -121,7 +128,7 @@ void loop(void) {
 }
 
 void checkTemperature() {
-  int HighByte, LowByte, TReading, SignBit, Tc_100, Whole, Fract;
+  int highByte, lowByte, tReading, signBit, tc_100, whole, fract;
   byte sensor = 0;
 
   byte i;
@@ -148,23 +155,23 @@ void checkTemperature() {
       data[i] = ds.read();
     }
 
-    LowByte = data[0];
-    HighByte = data[1];
-    TReading = (HighByte << 8) + LowByte;
-    SignBit = TReading & 0x8000;  // test most sig bit
-    if (SignBit) // negative
+    lowByte = data[0];
+    highByte = data[1];
+    tReading = (highByte << 8) + lowByte;
+    signBit = tReading & 0x8000;  // test most sig bit
+    if (signBit) // negative
     {
-      TReading = (TReading ^ 0xffff) + 1; // 2's comp
+      tReading = (tReading ^ 0xffff) + 1; // 2's comp
     }
-    Tc_100 = (6 * TReading) + TReading / 4;    // multiply by (100 * 0.0625) or 6.25
+    tc_100 = (6 * tReading) + tReading / 4;    // multiply by (100 * 0.0625) or 6.25
 
-    Whole = Tc_100 / 100;  // separate off the whole and fractional portions
-    Fract = Tc_100 % 100;
+    whole = tc_100 / 100;  // separate off the whole and fractional portions
+    fract = tc_100 % 100;
 
-    sprintf(buf, "Temp :%c%d.%d",SignBit ? '-' : '+', Whole, Fract < 10 ? 0 : Fract);
+    sprintf(buf, "Temp :%c%d.%d",signBit ? '-' : '+', whole, fract < 10 ? 0 : fract);
     print(0, 0, buf);
     // TODO : centralize SMS handling to limit them
-    if(Whole > 29) {
+    if(whole > temperatureThreshold) {
       sendSMS(buf);
     }
   }
@@ -216,26 +223,35 @@ void resetIRDisplay() {
 }
 
 void processIRCode(decode_results code) {
+  unsigned long irCode = code.value;
+  if((irCode == IR_REPEAT_CODE) && (0 != previousCode)) {
+    irCode = previousCode;
+  }
+  previousCode = irCode;
   lastIrDisplay = millis();
   char strBuf[20];
-  Serial.println(code.value, HEX);
+  Serial.println(irCode, HEX);
   print(14, 0, "ir");
-  switch(code.value) {
-    case DISPLAY_PHONE_NUMBER:
+  switch(irCode) {
+    case IR_DISPLAY_PHONE_NUMBER:
       print(0, 0, remoteNumber);
     break;
-    case INCR_LIGHT_THRESHOLD:
+    case IR_INCR_LIGHT_THRESHOLD:
       lightThreshold ++;
-      sprintf(strBuf, "%d", lightThreshold);
-      print(0, 0, strBuf);
+      sprintf(strBuf, "Light th: %d", lightThreshold);
+      print(0, 1, strBuf);
     break;
-    case DECR_LIGHT_THRESHOLD:
+    case IR_DECR_LIGHT_THRESHOLD:
       lightThreshold --;
-      sprintf(strBuf, "%d", lightThreshold);
-      print(0, 0, strBuf);
+      sprintf(strBuf, "Light th: %d", lightThreshold);
+      print(0, 1, strBuf);
     break;
-    case DISPLAY_LIGHT_THRESHOLD:
-      sprintf(strBuf, "%d", lightThreshold);
+    case IR_DISPLAY_LIGHT_THRESHOLD:
+      sprintf(strBuf, "Light th: %d", lightThreshold);
+      print(0, 1, strBuf);
+    break;
+    case IR_DISPLAY_TEMPERATURE_THRESHOLD:
+      sprintf(strBuf, "Temp th: %d", temperatureThreshold);
       print(0, 0, strBuf);
     break;
     default:
