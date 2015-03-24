@@ -15,14 +15,25 @@ decode_results code;
 #define IR_DISPLAY_PHONE_NUMBER 0xF720DF       // (R key on xanlite remote, for now)
 #define IR_INCR_LIGHT_THRESHOLD 0xF700FF       // (light+ on xanlite remote, for now)
 #define IR_DECR_LIGHT_THRESHOLD 0xF7807F       // (light- on xanlite remote, for now)
-#define IR_DISPLAY_LIGHT_THRESHOLD 0xF740BF    // (OFF on xanlite remote, for now)
-#define IR_DISPLAY_TEMPERATURE_THRESHOLD 0xF7C03F    // (ON on xanlite remote, for now)
+#
+#define IR_INCR_TEMP_ADJUSTMENT 0xF740BF       // (OFF on xanlite remote, for now)
+#define IR_DECR_TEMP_ADJUSTMENT 0xF7C03F       // (ON on xanlite remote, for now)
+#
+#define IR_DISPLAY_THRESHOLDS   0xF7A05F       // (V on xanlite remote, for now)
+#
+#
+#define IR_SAVE_TO_EEPROM 0xF7E817    // (Lent on xanlite remote, for now)
 
 // When a key is maintained pressed, a different code is sent, and we want to repeat the operation
 #define IR_REPEAT_CODE 0xFFFFFFFF
 unsigned long previousCode = 0;
 
+// TODO : read these from EEPROM (and initialize them if not found
 long lightThreshold = 500;
+int temperatureAdjustment = 0;
+
+#define TEMPERATURE_LOW_THRESHOLD 24
+#define TEMPERATURE_HIGH_THRESHOLD 27
 
 // GSM
 // initialize the library instance
@@ -49,7 +60,6 @@ LiquidCrystal lcd(7, 8, 9, 10, 11 , 12);
 OneWire  ds(TEMPERATURE_PIN);
 #define MAX_DS1820_SENSORS 1
 byte addr[MAX_DS1820_SENSORS][8];
-long temperatureThreshold = 26;
 
 char strBuf[20];
 
@@ -128,7 +138,8 @@ void loop(void) {
 }
 
 void checkTemperature() {
-  int highByte, lowByte, tReading, signBit, tc_100, whole, fract;
+  int highByte, lowByte, tReading, signBit, tc_100;
+  float temperature;
   byte sensor = 0;
 
   byte i;
@@ -150,8 +161,8 @@ void checkTemperature() {
     ds.select(addr[sensor]);
     ds.write(0xBE);         // Read Scratchpad
 
-    for ( i = 0; i < 9; i++)
-    {           // we need 9 bytes
+    for ( i = 0; i < 9; i++) {
+      // we need 9 bytes
       data[i] = ds.read();
     }
 
@@ -164,16 +175,16 @@ void checkTemperature() {
       tReading = (tReading ^ 0xffff) + 1; // 2's comp
     }
     tc_100 = (6 * tReading) + tReading / 4;    // multiply by (100 * 0.0625) or 6.25
+    // user defined signed value to adjust temperature measure
+    //tc_100 += temperatureAdjustment; 
 
-    whole = tc_100 / 100;  // separate off the whole and fractional portions
-    fract = tc_100 % 100;
-
-    sprintf(strBuf, (char *)F("Temp :%c%d.%d"),signBit ? '-' : '+', whole, fract < 10 ? 0 : fract);
-    print(0, 0, strBuf);
+    //temperature = tc_100 / 100;
+    //sprintf(strBuf, (char *)F("Temp :%c0.2%f"),signBit ? '-' : '+', temperature);
+    //print(0, 0, strBuf);
     // TODO : centralize SMS handling to limit them
-    if(whole > temperatureThreshold) {
-      sendSMS(strBuf);
-    }
+    //if((temperature < TEMPERATURE_LOW_THRESHOLD) || (temperature > TEMPERATURE_HIGH_THRESHOLD)) {
+      //sendSMS(strBuf);
+    //}
   }
 }
 
@@ -244,13 +255,23 @@ void processIRCode(decode_results code) {
       sprintf(strBuf, (char *)F("Light th: %d"), lightThreshold);
       print(0, 1, strBuf);
     break;
-    case IR_DISPLAY_LIGHT_THRESHOLD:
-      sprintf(strBuf, (char *)F("Light th: %d"), lightThreshold);
+
+    case IR_INCR_TEMP_ADJUSTMENT:
+      temperatureAdjustment ++;
+      sprintf(strBuf, (char *)F("Temp Adjust: %d"), temperatureAdjustment);
       print(0, 1, strBuf);
     break;
-    case IR_DISPLAY_TEMPERATURE_THRESHOLD:
-      sprintf(strBuf, (char *)F("Temp th: %d"), temperatureThreshold);
+    case IR_DECR_TEMP_ADJUSTMENT:
+      lightThreshold --;
+      sprintf(strBuf, (char *)F("Temp Adjust: %d"), temperatureAdjustment);
       print(0, 0, strBuf);
+    break;
+
+    case IR_DISPLAY_THRESHOLDS:
+      sprintf(strBuf, (char *)F("Temp set: %d %d"), TEMPERATURE_LOW_THRESHOLD, TEMPERATURE_HIGH_THRESHOLD);
+      print(0, 0, strBuf);
+      sprintf(strBuf, (char *)F("Light set: %d"), lightThreshold);
+      print(0, 1, strBuf);
     break;
     default:
       print(15, 1, "?");
