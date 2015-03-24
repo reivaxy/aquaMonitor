@@ -32,8 +32,8 @@ unsigned long previousCode = 0;
 long lightThreshold = 500;
 int temperatureAdjustment = 0;
 
-#define TEMPERATURE_LOW_THRESHOLD 24
-#define TEMPERATURE_HIGH_THRESHOLD 27
+#define TEMPERATURE_LOW_THRESHOLD 2100
+#define TEMPERATURE_HIGH_THRESHOLD 2700
 
 // GSM
 // initialize the library instance
@@ -72,21 +72,23 @@ unsigned long lastLightCheck = millis() - LIGHT_CHECK_PERIOD;
 #define IR_DISPLAY_TIMEOUT 250
 unsigned long lastIrDisplay = 0;
 
+unsigned long lastSmsSent = 0;
+
 boolean gsmEnabled = false;
 
 void setup(void) {
   Serial.begin(9600);
 
   lcd.begin(LCD_WIDTH, LCD_HEIGHT,1);
-  print(0, 0, (char *)F("Init AquaMon"));
-  print(0, 1, (char *)F("Init IR"));
+  print(0, 0, (char *)G("Init AquaMon"));
+  print(0, 1, (char *)G("Init IR"));
   reception_ir.enableIRIn(); // init receiver
   delay(250);
 
-  print(0, 1, (char *)F("DS1820 Test"));
+  print(0, 1, (char *)G("DS1820 Test"));
   if (!ds.search(addr[0]))
   {
-    print(0, 1, (char *)F("Error addr 0"));
+    print(0, 1, (char *)G("Error addr 0"));
     ds.reset_search();
     delay(250);
   }
@@ -99,15 +101,15 @@ void setup(void) {
 
   // Start GSM shield
   lcd.clear();
-  print(0, 0, (char *)F("GSM init."));
+  print(0, 0, (char *)G("GSM init."));
   while(notConnected)
   {
-    print(0, 1, (char *)F("Connecting"));
+    print(0, 1, (char *)G("Connecting"));
     if(gsmAccess.begin(PINNUMBER)==GSM_READY) {
-      print(0, 1, (char *)F("GSM Connected"));
+      print(0, 1, (char *)G("GSM Connected"));
       notConnected = false;
     } else {
-      print(0, 1, (char *)F("Not connected"));
+      print(0, 1, (char *)G("Not connected"));
       delay(200);
     }
   }
@@ -138,8 +140,7 @@ void loop(void) {
 }
 
 void checkTemperature() {
-  int highByte, lowByte, tReading, signBit, tc_100;
-  float temperature;
+  int highByte, lowByte, tReading, signBit, tc_100, whole, fract;
   byte sensor = 0;
 
   byte i;
@@ -147,9 +148,9 @@ void checkTemperature() {
   byte data[12];
 
   if ( OneWire::crc8( addr[sensor], 7) != addr[sensor][7]) {
-    print(0, 0, (char *)F("CRC is not valid"));
+    print(0, 0, (char *)G("CRC is not valid"));
   } else if ( addr[sensor][0] != 0x28) {
-    print(0, 0, (char *)F("Not DS18B20 family."));
+    print(0, 0, (char *)G("Not DS18B20 family."));
   } else {
     ds.reset();
     ds.select(addr[sensor]);
@@ -176,15 +177,17 @@ void checkTemperature() {
     }
     tc_100 = (6 * tReading) + tReading / 4;    // multiply by (100 * 0.0625) or 6.25
     // user defined signed value to adjust temperature measure
-    //tc_100 += temperatureAdjustment; 
+    tc_100 += temperatureAdjustment; 
 
-    //temperature = tc_100 / 100;
-    //sprintf(strBuf, (char *)F("Temp :%c0.2%f"),signBit ? '-' : '+', temperature);
-    //print(0, 0, strBuf);
+    whole = tc_100 / 100;  // separate off the whole and fractional portions
+    fract = tc_100 % 100;
+
+    sprintf(strBuf, "Temp :%c%d.%d",signBit ? '-' : '+', whole, fract < 10 ? 0 : fract);
+    print(0, 0, strBuf);
     // TODO : centralize SMS handling to limit them
-    //if((temperature < TEMPERATURE_LOW_THRESHOLD) || (temperature > TEMPERATURE_HIGH_THRESHOLD)) {
-      //sendSMS(strBuf);
-    //}
+    if((tc_100 < TEMPERATURE_LOW_THRESHOLD) || (tc_100 > TEMPERATURE_HIGH_THRESHOLD)) {
+      sendSMS(strBuf);
+    }
   }
 }
 
@@ -192,7 +195,7 @@ void checkLight() {
   long lightLevel = 0;
 
   lightLevel = analogRead(LIGHT_PIN);
-  sprintf(strBuf, (char *)F("Light: %d"), lightLevel);
+  sprintf(strBuf, (char *)G("Light: %d"), lightLevel);
   print(0, 1, strBuf);
   if(lightLevel < lightThreshold) {
     sendSMS(strBuf);
@@ -200,8 +203,10 @@ void checkLight() {
 }
 
 void sendSMS(char *txtMsg){
-  print(0, 0, (char *)F("Sending SMS..."));
-  print(0, 1, (char *)F("To:"));
+  // If previous sms was sent more than 60 seconds ago, do nothing
+  if((millis() - lastSmsSent) < 10000) return;
+  print(0, 0, (char *)G("Sending SMS..."));
+  print(0, 1, (char *)G("To:"));
   print(4, 1, remoteNumber);
   Serial.println(txtMsg);
 
@@ -210,8 +215,10 @@ void sendSMS(char *txtMsg){
     sms.beginSMS(remoteNumber);
     sms.print(txtMsg);
     sms.endSMS();
-    print(0, 0, (char *)F("SMS sent"));
+    print(0, 0, (char *)G("SMS sent"));
   }
+
+  lastSmsSent = millis();
 }
 
 void print(int col, int row, char* displayMsg) {
@@ -232,6 +239,9 @@ void resetIRDisplay() {
   lcd.print(" ");
 }
 
+char* G(char* str) {
+  return(str);
+}
 void processIRCode(decode_results code) {
   unsigned long irCode = code.value;
   if((irCode == IR_REPEAT_CODE) && (0 != previousCode)) {
@@ -247,33 +257,35 @@ void processIRCode(decode_results code) {
     break;
     case IR_INCR_LIGHT_THRESHOLD:
       lightThreshold ++;
-      sprintf(strBuf, (char *)F("Light th: %d"), lightThreshold);
+      sprintf(strBuf, (char *)G("Light th: %d"), lightThreshold);
       print(0, 1, strBuf);
     break;
     case IR_DECR_LIGHT_THRESHOLD:
       lightThreshold --;
-      sprintf(strBuf, (char *)F("Light th: %d"), lightThreshold);
+      sprintf(strBuf, (char *)G("Light th: %d"), lightThreshold);
       print(0, 1, strBuf);
     break;
 
     case IR_INCR_TEMP_ADJUSTMENT:
       temperatureAdjustment ++;
-      sprintf(strBuf, (char *)F("Temp Adjust: %d"), temperatureAdjustment);
+      sprintf(strBuf, (char *)G("Temp Adj: %d"), temperatureAdjustment);
       print(0, 1, strBuf);
     break;
     case IR_DECR_TEMP_ADJUSTMENT:
-      lightThreshold --;
-      sprintf(strBuf, (char *)F("Temp Adjust: %d"), temperatureAdjustment);
-      print(0, 0, strBuf);
+      temperatureAdjustment --;
+      sprintf(strBuf, (char *)G("Temp Adj: %d"), temperatureAdjustment);
+      print(0, 1, strBuf);
     break;
 
     case IR_DISPLAY_THRESHOLDS:
-      sprintf(strBuf, (char *)F("Temp set: %d %d"), TEMPERATURE_LOW_THRESHOLD, TEMPERATURE_HIGH_THRESHOLD);
+      sprintf(strBuf, (char *)G("Temp: %d %d"), TEMPERATURE_LOW_THRESHOLD, TEMPERATURE_HIGH_THRESHOLD);
       print(0, 0, strBuf);
-      sprintf(strBuf, (char *)F("Light set: %d"), lightThreshold);
+      sprintf(strBuf, (char *)G("Light: %d"), lightThreshold);
       print(0, 1, strBuf);
     break;
     default:
       print(15, 1, "?");
   }
 }
+
+
