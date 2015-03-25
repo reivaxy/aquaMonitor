@@ -9,20 +9,20 @@
 // IR behavior very much depends on remote control key layout...
 
 // Init IR
-#define IR_PIN 2
+#define IR_PIN 5
 IRrecv reception_ir(IR_PIN);
 decode_results code;
 #define IR_DISPLAY_PHONE_NUMBER 0xF720DF       // (R key on xanlite remote, for now)
 #define IR_INCR_LIGHT_THRESHOLD 0xF700FF       // (light+ on xanlite remote, for now)
 #define IR_DECR_LIGHT_THRESHOLD 0xF7807F       // (light- on xanlite remote, for now)
-#
+
 #define IR_INCR_TEMP_ADJUSTMENT 0xF740BF       // (OFF on xanlite remote, for now)
 #define IR_DECR_TEMP_ADJUSTMENT 0xF7C03F       // (ON on xanlite remote, for now)
-#
+
 #define IR_DISPLAY_THRESHOLDS   0xF7A05F       // (V on xanlite remote, for now)
-#
-#
-#define IR_SAVE_TO_EEPROM 0xF7E817    // (Lent on xanlite remote, for now)
+
+
+#define IR_SAVE_TO_EEPROM 0xF7E817    // ('Lent' on xanlite remote, for now)
 
 // When a key is maintained pressed, a different code is sent, and we want to repeat the operation
 #define IR_REPEAT_CODE 0xFFFFFFFF
@@ -61,7 +61,9 @@ OneWire  ds(TEMPERATURE_PIN);
 #define MAX_DS1820_SENSORS 1
 byte addr[MAX_DS1820_SENSORS][8];
 
-char strBuf[20];
+char msgBuf[20];
+char temperatureMsg[20];
+char lightMsg[20];
 
 #define TEMPERATURE_CHECK_PERIOD 5000
 unsigned long lastTemperatureCheck = millis() - TEMPERATURE_CHECK_PERIOD;
@@ -72,23 +74,31 @@ unsigned long lastLightCheck = millis() - LIGHT_CHECK_PERIOD;
 #define IR_DISPLAY_TIMEOUT 250
 unsigned long lastIrDisplay = 0;
 
-unsigned long lastSmsSent = 0;
+// Check for incoming sms every 30 seconds
+#define SMS_CHECK_PERIOD 30000
+unsigned long lastSmsCheck = 0;
 
-boolean gsmEnabled = false;
+#define MIN_SMS_SEND_DELAY 30000
+unsigned long lastSmsSent = 0;
+// Max size of a received SMS
+#define MAX_SMS_LENGTH 10
+boolean gsmEnabled = !false;
+
+boolean statusOK = true;
 
 void setup(void) {
   Serial.begin(9600);
 
   lcd.begin(LCD_WIDTH, LCD_HEIGHT,1);
-  print(0, 0, (char *)G("Init AquaMon"));
-  print(0, 1, (char *)G("Init IR"));
+  print(0, 0, "Init AquaMon");
+  print(0, 1, "Init IR");
   reception_ir.enableIRIn(); // init receiver
   delay(250);
 
-  print(0, 1, (char *)G("DS1820 Test"));
+  print(0, 1, "DS1820 Test");
   if (!ds.search(addr[0]))
   {
-    print(0, 1, (char *)G("Error addr 0"));
+    print(0, 1, "Error addr 0");
     ds.reset_search();
     delay(250);
   }
@@ -101,15 +111,15 @@ void setup(void) {
 
   // Start GSM shield
   lcd.clear();
-  print(0, 0, (char *)G("GSM init."));
+  print(0, 0, "GSM init.");
   while(notConnected)
   {
-    print(0, 1, (char *)G("Connecting"));
+    print(0, 1, "Connecting");
     if(gsmAccess.begin(PINNUMBER)==GSM_READY) {
-      print(0, 1, (char *)G("GSM Connected"));
+      print(0, 1, "GSM Connected");
       notConnected = false;
     } else {
-      print(0, 1, (char *)G("Not connected"));
+      print(0, 1, "Not connected");
       delay(200);
     }
   }
@@ -127,19 +137,30 @@ void loop(void) {
   }
 
   if((now - lastLightCheck) >= LIGHT_CHECK_PERIOD) {
-    checkLight();
-    lastLightCheck = millis();
+    statusOK = statusOK && checkLight();
+    lastLightCheck = now;
   }
   if((now - lastTemperatureCheck) >= TEMPERATURE_CHECK_PERIOD) {
-    checkTemperature();
+    statusOK = statusOK && checkTemperature();
     lastTemperatureCheck = millis();
   }
   if((now - lastIrDisplay) >= IR_DISPLAY_TIMEOUT) {
     resetIRDisplay();
   }
+  if((now - lastSmsCheck) >= SMS_CHECK_PERIOD) {
+    checkSMS();
+    lastSmsCheck = now;
+  }
+
+  if(!statusOK && (now - lastSmsSent) >= MIN_SMS_SEND_DELAY) {
+    sendStatus();
+    statusOK = true;  // TODO : should be reset more often ? each loop ?
+    lastSmsSent = now;
+  }
 }
 
-void checkTemperature() {
+boolean checkTemperature() {
+  boolean temperatureOK = true;
   int highByte, lowByte, tReading, signBit, tc_100, whole, fract;
   byte sensor = 0;
 
@@ -148,9 +169,9 @@ void checkTemperature() {
   byte data[12];
 
   if ( OneWire::crc8( addr[sensor], 7) != addr[sensor][7]) {
-    print(0, 0, (char *)G("CRC is not valid"));
+    print(0, 0, "CRC is not valid");
   } else if ( addr[sensor][0] != 0x28) {
-    print(0, 0, (char *)G("Not DS18B20 family."));
+    print(0, 0, "Not DS18B20 family.");
   } else {
     ds.reset();
     ds.select(addr[sensor]);
@@ -182,32 +203,68 @@ void checkTemperature() {
     whole = tc_100 / 100;  // separate off the whole and fractional portions
     fract = tc_100 % 100;
 
-    sprintf(strBuf, "Temp :%c%d.%d",signBit ? '-' : '+', whole, fract < 10 ? 0 : fract);
-    print(0, 0, strBuf);
-    // TODO : centralize SMS handling to limit them
+    sprintf(temperatureMsg, "Temp: %c%d.%d",signBit ? '-' : '+', whole, fract < 10 ? 0 : fract);
+    print(0, 0, temperatureMsg);
     if((tc_100 < TEMPERATURE_LOW_THRESHOLD) || (tc_100 > TEMPERATURE_HIGH_THRESHOLD)) {
-      sendSMS(strBuf);
+      temperatureOK = false;
+    }
+  }
+  return temperatureOK;
+}
+
+boolean checkLight() {
+  long lightLevel = 0;
+  boolean lightOK = true;
+  lightLevel = analogRead(LIGHT_PIN);
+  sprintf(lightMsg, "Light: %d", lightLevel);
+  print(0, 1, lightMsg);
+  if(lightLevel < lightThreshold) {
+    lightOK = false;
+  }
+  return(lightOK);
+}
+
+void checkSMS() {
+  char c;
+  int cptr = 0;
+  Serial.println("Checking SMS");
+  if (sms.available())
+  {
+    Serial.println("Msg received from:");
+
+    // Get remote number
+    sms.remoteNumber(msgBuf, 20);
+    Serial.println(msgBuf);
+
+    // An example of message disposal
+    // Any messages starting with # should be discarded
+    if (sms.peek() == '#') {
+      Serial.println("Disc SMS");
+      sms.flush();
+    } else {
+      // Read message bytes and print them
+      while ((c = sms.read()) && (cptr < MAX_SMS_LENGTH)) {
+        msgBuf[cptr++] = c;
+      }
+      msgBuf[cptr] = 0;
+
+      Serial.println(msgBuf);
+      if(strncmp(msgBuf, "status", 6) == 0) {
+        sendStatus();
+      }
+      // Delete message from modem memory
+      sms.flush();
+      Serial.println("MESSAGE DELETED");
     }
   }
 }
 
-void checkLight() {
-  long lightLevel = 0;
-
-  lightLevel = analogRead(LIGHT_PIN);
-  sprintf(strBuf, (char *)G("Light: %d"), lightLevel);
-  print(0, 1, strBuf);
-  if(lightLevel < lightThreshold) {
-    sendSMS(strBuf);
-  }
-}
-
-void sendSMS(char *txtMsg){
-  // If previous sms was sent more than 60 seconds ago, do nothing
-  if((millis() - lastSmsSent) < 10000) return;
-  print(0, 0, (char *)G("Sending SMS..."));
-  print(0, 1, (char *)G("To:"));
+void sendStatus() {
+  char txtMsg[100];
+  print(0, 0, "Sending SMS...");
+  print(0, 1, "To: ");
   print(4, 1, remoteNumber);
+  sprintf(txtMsg, "%s %s", temperatureMsg, lightMsg);
   Serial.println(txtMsg);
 
   // send the message
@@ -215,33 +272,37 @@ void sendSMS(char *txtMsg){
     sms.beginSMS(remoteNumber);
     sms.print(txtMsg);
     sms.endSMS();
-    print(0, 0, (char *)G("SMS sent"));
+    print(0, 0, "SMS sent");
   }
-
-  lastSmsSent = millis();
 }
 
 void print(int col, int row, char* displayMsg) {
-  char msg[MSG_MAX_LENGTH + 1];
+  char lcdBuf[LCD_WIDTH + 1];
+  int cptr = 0;
+  int count = strlen(displayMsg);
   Serial.println(displayMsg);
-  strncpy(msg, displayMsg, MSG_MAX_LENGTH);
-  while(strlen(msg) < MSG_MAX_LENGTH) {
-    strcat(msg, " ");
+
+  while((cptr < LCD_WIDTH) && (cptr < count)) {
+    lcdBuf[cptr] = displayMsg[cptr];
+    cptr++;
   }
+  while(cptr < LCD_WIDTH) {
+    lcdBuf[cptr] = ' ';
+    cptr++;
+  }
+  lcdBuf[LCD_WIDTH] = 0;
+
   lcd.setCursor(col, row);
-  lcd.print(msg);
+  lcd.print(lcdBuf);
 }
 
 void resetIRDisplay() {
-  lcd.setCursor(14,0);
-  lcd.print("  ");
+  //lcd.setCursor(14,0);
+  //lcd.print("  ");
   lcd.setCursor(15,1);
   lcd.print(" ");
 }
 
-char* G(char* str) {
-  return(str);
-}
 void processIRCode(decode_results code) {
   unsigned long irCode = code.value;
   if((irCode == IR_REPEAT_CODE) && (0 != previousCode)) {
@@ -250,38 +311,38 @@ void processIRCode(decode_results code) {
   previousCode = irCode;
   lastIrDisplay = millis();
   Serial.println(irCode, HEX);
-  print(14, 0, "ir");
+  //print(14, 0, "ir");
   switch(irCode) {
     case IR_DISPLAY_PHONE_NUMBER:
       print(0, 0, remoteNumber);
     break;
     case IR_INCR_LIGHT_THRESHOLD:
       lightThreshold ++;
-      sprintf(strBuf, (char *)G("Light th: %d"), lightThreshold);
-      print(0, 1, strBuf);
+      sprintf(msgBuf, "Light th: %d", lightThreshold);
+      print(0, 1, msgBuf);
     break;
     case IR_DECR_LIGHT_THRESHOLD:
       lightThreshold --;
-      sprintf(strBuf, (char *)G("Light th: %d"), lightThreshold);
-      print(0, 1, strBuf);
+      sprintf(msgBuf, "Light th: %d", lightThreshold);
+      print(0, 1, msgBuf);
     break;
 
     case IR_INCR_TEMP_ADJUSTMENT:
       temperatureAdjustment ++;
-      sprintf(strBuf, (char *)G("Temp Adj: %d"), temperatureAdjustment);
-      print(0, 1, strBuf);
+      sprintf(msgBuf, "Temp Adj: %d", temperatureAdjustment);
+      print(0, 1, msgBuf);
     break;
     case IR_DECR_TEMP_ADJUSTMENT:
       temperatureAdjustment --;
-      sprintf(strBuf, (char *)G("Temp Adj: %d"), temperatureAdjustment);
-      print(0, 1, strBuf);
+      sprintf(msgBuf, "Temp Adj: %d", temperatureAdjustment);
+      print(0, 1, msgBuf);
     break;
 
     case IR_DISPLAY_THRESHOLDS:
-      sprintf(strBuf, (char *)G("Temp: %d %d"), TEMPERATURE_LOW_THRESHOLD, TEMPERATURE_HIGH_THRESHOLD);
-      print(0, 0, strBuf);
-      sprintf(strBuf, (char *)G("Light: %d"), lightThreshold);
-      print(0, 1, strBuf);
+      sprintf(msgBuf, "Temp: %d %d", TEMPERATURE_LOW_THRESHOLD, TEMPERATURE_HIGH_THRESHOLD);
+      print(0, 0, msgBuf);
+      sprintf(msgBuf, "Light: %d", lightThreshold);
+      print(0, 1, msgBuf);
     break;
     default:
       print(15, 1, "?");
