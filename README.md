@@ -1,11 +1,12 @@
 # aquaMonitor
 Monitoring a recifal aquarium with arduino, and sending alerts by SMS
 
-For now, more POC than anything.
+Monitors light and temperature, and sends an SMS to a pre defined mobile phone number when configurable thresholds are reached.
 
-Monitors light and temperature and sends an SMS to a pre defined mobile phone number when configurable thresholds are reached
+Thresholds (and other stuff) can be configured with an IR remote control.
 
-Thresholds can be configured through an IR remote control
+Can also respond to SMS sent to it, according to their contents.
+
 
 When complete, will probably not fit on Arduino UNO.
 
@@ -30,7 +31,8 @@ When complete, will probably not fit on Arduino UNO.
 * centralized LCD message display to insure transient messages display and removal
 * backuped power (and alert) in case of power failure
 * Save and read params (thresholds...) to EEPROM
-
+* Saving periodical measure data on SD card (and may be info about sent and received SMS)
+* 
 
 #Licence
 ...to kill.
