@@ -32,7 +32,7 @@ When complete, will probably not fit on Arduino UNO.
 * backuped power (and alert) in case of power failure
 * Save and read params (thresholds...) to EEPROM
 * Saving periodical measure data on SD card (and may be info about sent and received SMS)
-* 
+* Change configuration using inbound SMS: thresholds, activation/deactivation of alerting feature, ...
 
 #Licence
 ...to kill.
