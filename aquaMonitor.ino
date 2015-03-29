@@ -3,10 +3,26 @@
 #include <GSM.h>
 #include <IRremote.h>
 
-// TODO : move variable declaration, it's a mess ! (use C++ ?)
-// TODO : handle SMS better (limit then, centralize handling...)
-// TODO : centralize message LCD displaying (transient IR msgs...) to insure a minimum display time for all
-// IR behavior very much depends on remote control key layout...
+#include <EEPROMex.h>
+#include <EEPROMvar.h>
+
+#define PHONE_NUMBER_LENGTH 15
+#define MAX_PHONE_NUMBERS 5
+#define CONFIG_ADDRESS 0
+
+struct phoneConfig {
+  unsigned char serviceFlags;
+  char number[PHONE_NUMBER_LENGTH + 1];
+};
+
+struct eepromConfig {
+  int temperatureAdjustment;
+  int temperatureHighThreshold;
+  int temperatureLowThreshold;
+  int lightThreshold;
+  phoneConfig registeredNumbers[MAX_PHONE_NUMBERS];
+} config;
+
 
 // Init IR
 #define IR_PIN 5
@@ -15,25 +31,13 @@ decode_results code;
 #define IR_DISPLAY_PHONE_NUMBER 0xF720DF       // (R key on xanlite remote, for now)
 #define IR_INCR_LIGHT_THRESHOLD 0xF700FF       // (light+ on xanlite remote, for now)
 #define IR_DECR_LIGHT_THRESHOLD 0xF7807F       // (light- on xanlite remote, for now)
-
 #define IR_INCR_TEMP_ADJUSTMENT 0xF740BF       // (OFF on xanlite remote, for now)
 #define IR_DECR_TEMP_ADJUSTMENT 0xF7C03F       // (ON on xanlite remote, for now)
-
 #define IR_DISPLAY_THRESHOLDS   0xF7A05F       // (V on xanlite remote, for now)
-
-
 #define IR_SAVE_TO_EEPROM 0xF7E817    // ('Lent' on xanlite remote, for now)
-
 // When a key is maintained pressed, a different code is sent, and we want to repeat the operation
 #define IR_REPEAT_CODE 0xFFFFFFFF
 unsigned long previousCode = 0;
-
-// TODO : read these from EEPROM (and initialize them if not found
-long lightThreshold = 500;
-int temperatureAdjustment = 0;
-
-#define TEMPERATURE_LOW_THRESHOLD 2100
-#define TEMPERATURE_HIGH_THRESHOLD 2700
 
 // GSM
 // initialize the library instance
@@ -43,7 +47,6 @@ GSM_SMS sms;
 
 // defined in a private file haha !
 #include <remoteNumber.h>
-char remoteNumber[11] = REMOTE_NUMBER;  // TODO: make it configurable & saved in Flash ?
 
 // LCD
 // initialize the library with the interface pins
@@ -82,15 +85,16 @@ unsigned long lastSmsCheck = 0;
 unsigned long lastSmsSent = 0;
 // Max size of a received SMS
 #define MAX_SMS_LENGTH 10
-boolean gsmEnabled = !false;
+boolean gsmEnabled = false;
 
 boolean statusOK = true;
 
 void setup(void) {
   Serial.begin(9600);
-
+  EEPROM.setMaxAllowedWrites(10);
   lcd.begin(LCD_WIDTH, LCD_HEIGHT,1);
   print(0, 0, "Init AquaMon");
+  readConfig();
   print(0, 1, "Init IR");
   reception_ir.enableIRIn(); // init receiver
   delay(250);
@@ -153,7 +157,7 @@ void loop(void) {
   }
 
   if(!statusOK && (now - lastSmsSent) >= MIN_SMS_SEND_DELAY) {
-    sendStatus();
+    sendStatus("");
     statusOK = true;  // TODO : should be reset more often ? each loop ?
     lastSmsSent = now;
   }
@@ -198,14 +202,14 @@ boolean checkTemperature() {
     }
     tc_100 = (6 * tReading) + tReading / 4;    // multiply by (100 * 0.0625) or 6.25
     // user defined signed value to adjust temperature measure
-    tc_100 += temperatureAdjustment; 
+    tc_100 += config.temperatureAdjustment;
 
     whole = tc_100 / 100;  // separate off the whole and fractional portions
     fract = tc_100 % 100;
 
     sprintf(temperatureMsg, "Temp: %c%d.%d",signBit ? '-' : '+', whole, fract < 10 ? 0 : fract);
     print(0, 0, temperatureMsg);
-    if((tc_100 < TEMPERATURE_LOW_THRESHOLD) || (tc_100 > TEMPERATURE_HIGH_THRESHOLD)) {
+    if((tc_100 < config.temperatureLowThreshold) || (tc_100 > config.temperatureHighThreshold)) {
       temperatureOK = false;
     }
   }
@@ -218,13 +222,15 @@ boolean checkLight() {
   lightLevel = analogRead(LIGHT_PIN);
   sprintf(lightMsg, "Light: %d", lightLevel);
   print(0, 1, lightMsg);
-  if(lightLevel < lightThreshold) {
+  if(lightLevel < config.lightThreshold) {
     lightOK = false;
   }
-  return(lightOK);
+  //return(lightOK);
+  return true;
 }
 
 void checkSMS() {
+  char from[15];
   char c;
   int cptr = 0;
   Serial.println("Checking SMS");
@@ -233,8 +239,8 @@ void checkSMS() {
     Serial.println("Msg received from:");
 
     // Get remote number
-    sms.remoteNumber(msgBuf, 20);
-    Serial.println(msgBuf);
+    sms.remoteNumber(from, 20);
+    Serial.println(from);
 
     // An example of message disposal
     // Any messages starting with # should be discarded
@@ -250,7 +256,7 @@ void checkSMS() {
 
       Serial.println(msgBuf);
       if(strncmp(msgBuf, "status", 6) == 0) {
-        sendStatus();
+        sendStatus(from);
       }
       // Delete message from modem memory
       sms.flush();
@@ -259,17 +265,17 @@ void checkSMS() {
   }
 }
 
-void sendStatus() {
+void sendStatus(char *toNumber) {
   char txtMsg[100];
   print(0, 0, "Sending SMS...");
   print(0, 1, "To: ");
-  print(4, 1, remoteNumber);
+  print(4, 1, toNumber);
   sprintf(txtMsg, "%s %s", temperatureMsg, lightMsg);
   Serial.println(txtMsg);
 
   // send the message
   if(gsmEnabled) {
-    sms.beginSMS(remoteNumber);
+    sms.beginSMS(toNumber);
     sms.print(txtMsg);
     sms.endSMS();
     print(0, 0, "SMS sent");
@@ -314,38 +320,53 @@ void processIRCode(decode_results code) {
   //print(14, 0, "ir");
   switch(irCode) {
     case IR_DISPLAY_PHONE_NUMBER:
-      print(0, 0, remoteNumber);
+      // loop over config
     break;
     case IR_INCR_LIGHT_THRESHOLD:
-      lightThreshold ++;
-      sprintf(msgBuf, "Light th: %d", lightThreshold);
+      config.lightThreshold ++;
+      sprintf(msgBuf, "Light th: %d", config.lightThreshold);
       print(0, 1, msgBuf);
     break;
     case IR_DECR_LIGHT_THRESHOLD:
-      lightThreshold --;
-      sprintf(msgBuf, "Light th: %d", lightThreshold);
+      config.lightThreshold --;
+      sprintf(msgBuf, "Light th: %d", config.lightThreshold);
       print(0, 1, msgBuf);
     break;
 
     case IR_INCR_TEMP_ADJUSTMENT:
-      temperatureAdjustment ++;
-      sprintf(msgBuf, "Temp Adj: %d", temperatureAdjustment);
+      config.temperatureAdjustment ++;
+      sprintf(msgBuf, "Temp Adj: %d", config.temperatureAdjustment);
       print(0, 1, msgBuf);
     break;
     case IR_DECR_TEMP_ADJUSTMENT:
-      temperatureAdjustment --;
-      sprintf(msgBuf, "Temp Adj: %d", temperatureAdjustment);
+      config.temperatureAdjustment --;
+      sprintf(msgBuf, "Temp Adj: %d", config.temperatureAdjustment);
       print(0, 1, msgBuf);
     break;
 
     case IR_DISPLAY_THRESHOLDS:
-      sprintf(msgBuf, "Temp: %d %d", TEMPERATURE_LOW_THRESHOLD, TEMPERATURE_HIGH_THRESHOLD);
+      sprintf(msgBuf, "Temp: %d %d", config.temperatureLowThreshold, config.temperatureHighThreshold);
       print(0, 0, msgBuf);
-      sprintf(msgBuf, "Light: %d", lightThreshold);
+      sprintf(msgBuf, "Light: %d", config.lightThreshold);
       print(0, 1, msgBuf);
     break;
     default:
       print(15, 1, "?");
+  }
+}
+
+void readConfig() {
+  print(0, 1, "Read Config");
+  EEPROM.readBlock(CONFIG_ADDRESS, config);
+  if(config.lightThreshold == -1) {
+    config.lightThreshold = 500;
+    config.temperatureAdjustment = 0;
+    config.temperatureHighThreshold = 2700;
+    config.temperatureLowThreshold = 2100;
+    config.registeredNumbers[0].serviceFlags = 0xFF;
+    strcpy(config.registeredNumbers[0].number, REMOTE_NUMBER);
+    Serial.println("Saving");
+    EEPROM.writeBlock(CONFIG_ADDRESS, config);
   }
 }
 
