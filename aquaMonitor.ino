@@ -6,10 +6,10 @@
 #include <EEPROMvar.h>
 
 #define PHONE_NUMBER_LENGTH 15
-#define MAX_PHONE_NUMBERS 2
+#define MAX_PHONE_NUMBERS 4
 #define CONFIG_ADDRESS 0
 // Change this version to reset the EEPROM saved configuration
-#define CONFIG_VERSION 1
+#define CONFIG_VERSION 2
 
 struct phoneConfig {
   unsigned char serviceFlags;
@@ -25,10 +25,10 @@ struct eepromConfig {
   phoneConfig registeredNumbers[MAX_PHONE_NUMBERS];
 } config;
 
-#define FLAG_SERVICE_ALERT   B00000001
-#define FLAG_SERVICE_EVENT   B00000010
-#define FLAG_SERVICE_SUB     B00000100
-#define FLAG_SERVICE_UNSUB   B00001000
+#define FLAG_SERVICE_ALERT   0x01
+#define FLAG_SERVICE_EVENT   0x02
+#define FLAG_SERVICE_SUB     0x04
+#define FLAG_SERVICE_UNSUB   0x08
 
 // Init IR
 #define IR_PIN 5
@@ -42,6 +42,7 @@ decode_results code;
 #define IR_DISPLAY_THRESHOLDS   0xF7A05F       // (V on xanlite remote, for now)
 #define IR_DISPLAY_TEMP_ADJUST  0xF7609F       // (B on xanlite remote, for now)
 #define IR_SAVE_TO_EEPROM       0xF7E817    // ('Lent' on xanlite remote, for now)
+#define IR_LOG_CONFIG           0xF728D7    // jaune clair
 // When a key is maintained pressed, a different code is sent, and we want to repeat the operation
 #define IR_REPEAT_CODE 0xFFFFFFFF
 unsigned long previousCode = 0;
@@ -71,7 +72,8 @@ OneWire  ds(TEMPERATURE_PIN);
 #define MAX_DS1820_SENSORS 1
 byte addr[MAX_DS1820_SENSORS][8];
 
-char msgBuf[20];
+char msgBuf[70];
+char progMemMsg[60];
 char temperatureMsg[20];
 char lightMsg[20];
 
@@ -96,7 +98,6 @@ boolean gsmEnabled = !false;
 
 boolean statusOK = true;
 #include <avr/pgmspace.h>
-char progMemMsg[60];
 
 // Messages and formats saved in  to save RAM
 const char initAquamonMsg[] PROGMEM = {"Init AquaMon"};
@@ -104,7 +105,7 @@ const char initIRMsg[] PROGMEM = {"Init IR remote"};
 const char tempInitMsg[] PROGMEM = {"DS1820 Test"};
 const char addrErrMsg[] PROGMEM = {"Error addr 0"};
 const char initGSMMsg[] PROGMEM = {"GSM init."};
-const char connectingGSMMsg[] PROGMEM = {"Connecting"};
+const char connectingGSMMsg[] PROGMEM = {"GSM Connecting"};
 const char connectedGSMMsg[] PROGMEM = {"GSM Connected"};
 const char notConnectedGSMMsg[] PROGMEM = {"Not connected"};
 const char crcNotValidMsg[] PROGMEM = {"CRC is not valid"};
@@ -305,7 +306,7 @@ boolean checkLight() {
 void checkSMS() {
   char from[PHONE_NUMBER_LENGTH + 1];
   char service[20];
-  char c;
+  char c,i;
   int cptr = 0;
   if(!gsmEnabled) return;
   Serial.println(getProgMemMsg(CHECK_SMS_MSG));
@@ -325,20 +326,28 @@ void checkSMS() {
     } else {
       // Read message bytes and print them
       while ((c = sms.read()) && (cptr < MAX_SMS_LENGTH)) {
-        if ((c > 96) && (c < 123)) {
-          c = c - 32;
+        if ((c > 64) && (c < 91)) {
+          c = c + 32;
         }
         msgBuf[cptr++] = c;
       }
       msgBuf[cptr] = 0;
-      if(strncmp(msgBuf, "status ", 7) == 0) {
+      Serial.println(msgBuf);
+      if(strncmp(msgBuf, "status", 6) == 0) {
         sendStatus(from);
-      } else if(strncmp(msgBuf, "sub ", 4) == 0) {
+      } else if(strncmp(msgBuf, "sub ", 3) == 0) {
         sscanf(msgBuf, "sub %s", service);
         subscribe(from, service);
-      } else if(strncmp(msgBuf, "unsub ",6) == 0) {
+      } else if(strncmp(msgBuf, "unsub ",5) == 0) {
         sscanf(msgBuf, "unsub %s", service);
         unsubscribe(from, service);
+      } else if(strncmp(msgBuf, "reset sub", 9) == 0) {
+        config.registeredNumbers[0].serviceFlags = 0xFF;
+        strcpy(config.registeredNumbers[0].number, REMOTE_NUMBER);
+        for(i=1 ; i < MAX_PHONE_NUMBERS; i++ ) {
+          config.registeredNumbers[i].serviceFlags = 0;
+          config.registeredNumbers[i].number[0] = 0;
+        }
       }
       // Delete message from modem memory
       sms.flush();
@@ -347,7 +356,7 @@ void checkSMS() {
 }
 
 unsigned char getServiceFlagFromName(char *serviceName) {
-  unsigned char serviceFlag;
+  unsigned char serviceFlag = 0;
 
   if(strncmp(serviceName, "alert", 5)) {
     serviceFlag = FLAG_SERVICE_ALERT;
@@ -358,6 +367,7 @@ unsigned char getServiceFlagFromName(char *serviceName) {
   } else if(strncmp(serviceName, "unsub", 5)) {
     serviceFlag = FLAG_SERVICE_UNSUB;
   }
+  Serial.println(serviceFlag);
   return serviceFlag;
 }
 
@@ -370,11 +380,13 @@ void subscribe(char *number, char *serviceName) {
   // Check if number is already in the config
   for(i=0 ; i<MAX_PHONE_NUMBERS; i++) {
     // If current number in config is not initialized, keep its offset
-    if(config.registeredNumbers[i].number[0] == 0) {
-      firstFree = i;
-    } else if (strncmp(config.registeredNumbers[i].number, number, PHONE_NUMBER_LENGTH)) {
+    if((config.registeredNumbers[i].number[0] == 0)){
+      if(firstFree == MAX_PHONE_NUMBERS) {
+        firstFree = i;
+      }
+    } else if (0 == strncmp(config.registeredNumbers[i].number, number, PHONE_NUMBER_LENGTH)) {
       // If number found, set its flag for the given service
-      config.registeredNumbers[i].serviceFlags &= serviceFlag;
+      config.registeredNumbers[i].serviceFlags |= serviceFlag;
       done = true;
     }
     // If number was not yet registered but a free spot is available, register it
@@ -401,10 +413,12 @@ void unsubscribe(char *number, char *serviceName) {
   serviceFlag = getServiceFlagFromName(serviceName);
   // look for number
   for(i=0 ; i<MAX_PHONE_NUMBERS; i++) {
-    if (strncmp(config.registeredNumbers[i].number, number, PHONE_NUMBER_LENGTH)) {
+    if (0 == strncmp(config.registeredNumbers[i].number, number, PHONE_NUMBER_LENGTH)) {
       // If number found, cancel it
-      config.registeredNumbers[i].serviceFlags = 0;
-      config.registeredNumbers[i].number[0] = 0;
+      config.registeredNumbers[i].serviceFlags &= !serviceFlag;
+      if(0 == config.registeredNumbers[i].serviceFlags) {
+        config.registeredNumbers[i].number[0] = 0;
+      }
       done = true;
     }
   }
@@ -420,9 +434,10 @@ void unsubscribe(char *number, char *serviceName) {
 // Send SMS to all numbers subscribed to 'alerts'
 void sendAlert() {
   unsigned char i, flag;
+  print(0, 1, "Alerts");
   for(i=0; i < MAX_PHONE_NUMBERS; i++) {
     // If phone number initialized AND subscribed to the alert service
-    if((config.registeredNumbers[i].number[0] != 0) && (config.registeredNumbers[i].serviceFlags & FLAG_SERVICE_ALERT) ) {
+    if((config.registeredNumbers[i].number[0] != 0) && (0 != (config.registeredNumbers[i].serviceFlags & FLAG_SERVICE_ALERT)) ) {
       sendStatus(config.registeredNumbers[i].number);
     }
   }
@@ -437,7 +452,7 @@ void sendStatus(char *toNumber) {
 }
 
 void sendSMS(char *toNumber, char *message) {
-  print(0, 0, sendingSMSMsg);
+  print(0, 0, getProgMemMsg(SENDING_SMS_MSG));
   print(0, 1, "To: ");
   print(4, 1, toNumber);
   Serial.println(message);
@@ -531,10 +546,22 @@ void processIRCode(decode_results code) {
     case IR_SAVE_TO_EEPROM:
       saveConfig();
     break;
-
+    case IR_LOG_CONFIG:
+      logConfig();
+    break;
     default:
       print(15, 1, "?");
   }
+}
+
+void logConfig() {
+  char i;
+  for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
+    Serial.println(i);
+    Serial.println(config.registeredNumbers[i].number);
+    Serial.println(config.registeredNumbers[i].serviceFlags);
+  }
+
 }
 
 void readConfig() {
