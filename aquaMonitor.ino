@@ -2,7 +2,6 @@
 #include <LiquidCrystal.h>
 #include <GSM.h>
 #include <IRremote.h>
-
 #include <EEPROMex.h>
 #include <EEPROMvar.h>
 
@@ -63,7 +62,7 @@ LiquidCrystal lcd(7, 8, 9, 10, 11 , 12);
 #define LCD_WIDTH 16
 #define LCD_HEIGHT 2
 #define MSG_MAX_LENGTH 14
-#
+
 #define LIGHT_PIN 0
 #define TEMPERATURE_PIN 6
 
@@ -92,52 +91,84 @@ unsigned long lastSmsCheck = 0;
 #define MIN_SMS_SEND_DELAY 30000
 unsigned long lastSmsSent = 0;
 // Max size of a received SMS
-#define MAX_SMS_LENGTH 10
-boolean gsmEnabled = false;
+#define MAX_SMS_LENGTH 20
+boolean gsmEnabled = !false;
 
 boolean statusOK = true;
+#include <avr/pgmspace.h>
+char progMemMsg[60];
 
-// Messages and formats saved in PROGMEM to save RAM
-const PROGMEM char initAquaMonMsg[] = "Init AquaMon";
-const PROGMEM char initIRMsg[] = "Init IR remote";
-const PROGMEM char tempInitMsg[] = "DS1820 Test";
-const PROGMEM char addrErrMsg[] = "Error addr 0";
-const PROGMEM char initGSMMsg[] = "GSM init.";
-const PROGMEM char connectingGSMMsg[] = "Connecting";
-const PROGMEM char connectedGSMMsg[] = "GSM Connected";
-const PROGMEM char notConnectedGSMMsg[] = "Not connected";
-const PROGMEM char crcNotValidMsg[] = "CRC is not valid";
-const PROGMEM char familyMsg[] = "Not DS18B20 family.";
-const PROGMEM char temperatureMsgFormat[] = "Temp: %c%d.%d";
-const PROGMEM char lightMsgFormat[] = "Light: %d";
-const PROGMEM char checkSMSMsg[] = "Checking SMS";
-const PROGMEM char fromNumberMsg[] = "Msg received from:";
-const PROGMEM char discardSMSMsg[] = "Discard SMS";
-const PROGMEM char sendingSMSMsg[] = "Sending SMS...";
-const PROGMEM char lightThresholdMsgFormat[] = "Light th: %d";
-const PROGMEM char temperatureAdjustmentdMsgFormat[] = "Temp Adj: %d";
-const PROGMEM char temperatureThresholdMsgFormat[] = "Temp: %d %d";
-const PROGMEM char numberSubscribedMsg[] = "Number %s was subscribed to service %s";
-const PROGMEM char numberNotSubscribedMsg[] = "Number %s was NOT subscribed to service %s: full";
-const PROGMEM char numberUnsubscribedMsg[] = "Number %s was unsubscribed to service %s";
-const PROGMEM char numberNotUnsubscribedMsg[] = "Number %s was not unsubscribed to service %s: not found";
+// Messages and formats saved in  to save RAM
+const char initAquamonMsg[] PROGMEM = {"Init AquaMon"};
+const char initIRMsg[] PROGMEM = {"Init IR remote"};
+const char tempInitMsg[] PROGMEM = {"DS1820 Test"};
+const char addrErrMsg[] PROGMEM = {"Error addr 0"};
+const char initGSMMsg[] PROGMEM = {"GSM init."};
+const char connectingGSMMsg[] PROGMEM = {"Connecting"};
+const char connectedGSMMsg[] PROGMEM = {"GSM Connected"};
+const char notConnectedGSMMsg[] PROGMEM = {"Not connected"};
+const char crcNotValidMsg[] PROGMEM = {"CRC is not valid"};
+const char familyMsg[] PROGMEM = {"Not DS18B20 family."};
+const char temperatureMsgFormat[] PROGMEM = {"Temp: %c%d.%d"};
+const char lightMsgFormat[] PROGMEM = {"Light: %d"};
+const char checkSMSMsg[] PROGMEM = {"Checking SMS"};
+const char fromNumberMsg[] PROGMEM = {"Msg received from:"};
+const char discardSMSMsg[] PROGMEM = {"Discard SMS"};
+const char sendingSMSMsg[] PROGMEM = {"Sending SMS..."};
+const char lightThresholdMsgFormat[] PROGMEM = {"Light th: %d"};
+const char temperatureAdjustmentMsgFormat[] PROGMEM = {"Temp Adj: %d"};
+const char temperatureThresholdMsgFormat[] PROGMEM = {"Temp: %d %d"};
+const char numberSubscribedMsg[] PROGMEM = {"Number %s was subscribed to service %s"};
+const char numberNotSubscribedMsg[] PROGMEM = {"Number %s was NOT subscribed to service %s: full"};
+const char numberUnsubscribedMsg[] PROGMEM = {"Number %s was unsubscribed to service %s"};
+const char numberNotUnsubscribedMsg[] PROGMEM = {"Number %s was not unsubscribed to service %s: not found"};
 
+#define INIT_AQUAMON_MSG 0
+#define INIT_IR_MSG 1
+#define TEMP_INIT_MSG 2
+#define ADDR_ERR_MSG 3
+#define INIT_GSM_MSG 4
+#define CONNECTING_GSM_MSG 5
+#define CONNECTED_GSM_MSG 6
+#define NOT_CONNECTED_GSM_MSG 7
+#define CRC_NOT_VALID_MSG 8
+#define FAMILY_MSG 9
+#define TEMPERATURE_MSG_FORMAT 10
+#define LIGHT_MSG_FORMAT 11
+#define CHECK_SMS_MSG 12
+#define FROM_NUMBER_MSG 13
+#define DISCARD_SMS_MSG 14
+#define SENDING_SMS_MSG 15
+#define LIGHT_THRESHOLD_MSG_FORMAT 16
+#define TEMPERATURE_ADJUSTMENT_MSG_FORMAT 17
+#define TEMPERATURE_THRESHOLD_MSG_FORMAT 18
+#define NUMBER_SUBSCRIBED_MSG 19
+#define NUMBER_NOT_SUBSCRIBED_MSG 20
+#define NUMBER_UNSUBSCRIBED_MSG 21
+#define NUMBER_NOT_UNSUBSCRIBED_MSG 22
 
+const char* const messages[] PROGMEM = {initAquamonMsg, initIRMsg, tempInitMsg, addrErrMsg, initGSMMsg, connectingGSMMsg,
+   connectedGSMMsg, notConnectedGSMMsg, crcNotValidMsg, familyMsg, temperatureMsgFormat, lightMsgFormat, checkSMSMsg,
+   fromNumberMsg, discardSMSMsg, sendingSMSMsg, lightThresholdMsgFormat, temperatureAdjustmentMsgFormat,
+   temperatureThresholdMsgFormat, numberSubscribedMsg, numberNotSubscribedMsg, numberUnsubscribedMsg, numberNotUnsubscribedMsg
+};
 
 void setup(void) {
   Serial.begin(9600);
   EEPROM.setMaxAllowedWrites(10);
   lcd.begin(LCD_WIDTH, LCD_HEIGHT,1);
-  print(0, 0, initAquaMonMsg);
-  //readConfig();
-  print(0, 1, initIRMsg);
+
+  print(0, 0, getProgMemMsg(INIT_AQUAMON_MSG));
+  readConfig();
+  //print(0,0, config.registeredNumbers[0].number);
+  print(0, 1, getProgMemMsg(INIT_IR_MSG));
   reception_ir.enableIRIn(); // init receiver
   delay(250);
 
-  print(0, 1, tempInitMsg);
+  print(0, 1, getProgMemMsg(TEMP_INIT_MSG));
   if (!ds.search(addr[0]))
   {
-    print(0, 1, addrErrMsg);
+    print(0, 1, getProgMemMsg(ADDR_ERR_MSG));
     ds.reset_search();
     delay(250);
   }
@@ -150,20 +181,25 @@ void setup(void) {
 
   // Start GSM shield
   lcd.clear();
-  print(0, 0, initGSMMsg);
+  print(0, 0, getProgMemMsg(INIT_GSM_MSG));
   while(notConnected)
   {
-    print(0, 1, connectingGSMMsg);
+    print(0, 1, getProgMemMsg(CONNECTING_GSM_MSG));
     if(gsmAccess.begin(PINNUMBER)==GSM_READY) {
-      print(0, 1, connectedGSMMsg);
+      print(0, 1, getProgMemMsg(CONNECTED_GSM_MSG));
       notConnected = false;
     } else {
-      print(0, 1, notConnectedGSMMsg);
+      print(0, 1, getProgMemMsg(NOT_CONNECTED_GSM_MSG));
       delay(200);
     }
   }
   delay(500);
   lcd.clear();
+}
+
+char * getProgMemMsg(int messageId) {
+  strcpy_P(progMemMsg, (char*)pgm_read_word(&messages[messageId]));
+  return progMemMsg;
 }
 
 void loop(void) {
@@ -208,9 +244,9 @@ boolean checkTemperature() {
   byte data[12];
 
   if ( OneWire::crc8( addr[sensor], 7) != addr[sensor][7]) {
-    print(0, 0, crcNotValidMsg);
+    print(0, 0, getProgMemMsg(CRC_NOT_VALID_MSG));
   } else if ( addr[sensor][0] != 0x28) {
-    print(0, 0, familyMsg);
+    print(0, 0, getProgMemMsg(FAMILY_MSG));
   } else {
     ds.reset();
     ds.select(addr[sensor]);
@@ -242,7 +278,7 @@ boolean checkTemperature() {
     whole = tc_100 / 100;  // separate off the whole and fractional portions
     fract = tc_100 % 100;
 
-    sprintf(temperatureMsg, temperatureMsgFormat, signBit ? '-' : '+', whole, fract < 10 ? 0 : fract);
+    sprintf(temperatureMsg, getProgMemMsg(TEMPERATURE_MSG_FORMAT), signBit ? '-' : '+', whole, fract < 10 ? 0 : fract);
     print(0, 0, temperatureMsg);
     if((tc_100 < config.temperatureLowThreshold) || (tc_100 > config.temperatureHighThreshold)) {
       temperatureOK = false;
@@ -256,7 +292,7 @@ boolean checkLight() {
   long lightLevel = 0;
   boolean lightOK = true;
   lightLevel = analogRead(LIGHT_PIN);
-  sprintf(lightMsg, lightMsgFormat, lightLevel);
+  sprintf(lightMsg, getProgMemMsg(LIGHT_MSG_FORMAT), lightLevel);
   print(0, 1, lightMsg);
   if(lightLevel < config.lightThreshold) {
     lightOK = false;
@@ -272,10 +308,10 @@ void checkSMS() {
   char c;
   int cptr = 0;
   if(!gsmEnabled) return;
-  Serial.println(checkSMSMsg);
+  Serial.println(getProgMemMsg(CHECK_SMS_MSG));
   if (sms.available())
   {
-    Serial.println(fromNumberMsg);
+    Serial.println(getProgMemMsg(FROM_NUMBER_MSG));
 
     // Get remote number
     sms.remoteNumber(from, 20);
@@ -284,7 +320,7 @@ void checkSMS() {
     // An example of message disposal
     // Any messages starting with # should be discarded
     if (sms.peek() == '#') {
-      Serial.println(discardSMSMsg);
+      Serial.println(getProgMemMsg(DISCARD_SMS_MSG));
       sms.flush();
     } else {
       // Read message bytes and print them
@@ -349,10 +385,10 @@ void subscribe(char *number, char *serviceName) {
     }
   }
   if(done) {
-    sprintf(msgBuf, numberSubscribedMsg, number, serviceName);
+    sprintf(msgBuf, getProgMemMsg(NUMBER_SUBSCRIBED_MSG), number, serviceName);
     sendSMS(number, msgBuf);
   } else {
-    sprintf(msgBuf, numberNotSubscribedMsg, number, serviceName);
+    sprintf(msgBuf, getProgMemMsg(NUMBER_NOT_SUBSCRIBED_MSG), number, serviceName);
     sendSMS(number, msgBuf);
   }
 }
@@ -373,10 +409,10 @@ void unsubscribe(char *number, char *serviceName) {
     }
   }
   if(done) {
-    sprintf(msgBuf, numberUnsubscribedMsg, number, serviceName);
+    sprintf(msgBuf, getProgMemMsg(NUMBER_UNSUBSCRIBED_MSG), number, serviceName);
     sendSMS(number, msgBuf);
   } else {
-    sprintf(msgBuf, numberNotUnsubscribedMsg, number, serviceName);
+    sprintf(msgBuf, getProgMemMsg(NUMBER_NOT_UNSUBSCRIBED_MSG), number, serviceName);
     sendSMS(number, msgBuf);
   }
 }
@@ -460,35 +496,35 @@ void processIRCode(decode_results code) {
     break;
     case IR_INCR_LIGHT_THRESHOLD:
       config.lightThreshold ++;
-      sprintf(msgBuf, lightThresholdMsgFormat, config.lightThreshold);
+      sprintf(msgBuf, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
       print(0, 1, msgBuf);
     break;
     case IR_DECR_LIGHT_THRESHOLD:
       config.lightThreshold --;
-      sprintf(msgBuf, lightThresholdMsgFormat, config.lightThreshold);
+      sprintf(msgBuf, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
       print(0, 1, msgBuf);
     break;
 
     case IR_INCR_TEMP_ADJUSTMENT:
       config.temperatureAdjustment ++;
-      sprintf(msgBuf, temperatureAdjustmentdMsgFormat, config.temperatureAdjustment);
+      sprintf(msgBuf, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
       print(0, 1, msgBuf);
     break;
     case IR_DECR_TEMP_ADJUSTMENT:
       config.temperatureAdjustment --;
-      sprintf(msgBuf, temperatureAdjustmentdMsgFormat, config.temperatureAdjustment);
+      sprintf(msgBuf, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
       print(0, 1, msgBuf);
     break;
 
     case IR_DISPLAY_THRESHOLDS:
-      sprintf(msgBuf, temperatureThresholdMsgFormat, config.temperatureLowThreshold, config.temperatureHighThreshold);
+      sprintf(msgBuf, getProgMemMsg(TEMPERATURE_THRESHOLD_MSG_FORMAT), config.temperatureLowThreshold, config.temperatureHighThreshold);
       print(0, 0, msgBuf);
-      sprintf(msgBuf, lightThresholdMsgFormat, config.lightThreshold);
+      sprintf(msgBuf, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
       print(0, 1, msgBuf);
     break;
 
     case IR_DISPLAY_TEMP_ADJUST:
-      sprintf(msgBuf, temperatureAdjustmentdMsgFormat, config.temperatureAdjustment);
+      sprintf(msgBuf, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
       print(0, 0, msgBuf);
     break;
 
@@ -504,7 +540,7 @@ void processIRCode(decode_results code) {
 void readConfig() {
   unsigned char i;
   print(0, 1, "Read Config");
-//  EEPROM.readBlock(CONFIG_ADDRESS, config);
+  EEPROM.readBlock(CONFIG_ADDRESS, config);
   if(config.version != CONFIG_VERSION) {
     config.version = CONFIG_VERSION;
     config.lightThreshold = 500;
@@ -521,7 +557,7 @@ void readConfig() {
     }
 
     Serial.println("Saving");
-  //  EEPROM.writeBlock(CONFIG_ADDRESS, config);
+    EEPROM.writeBlock(CONFIG_ADDRESS, config);
   }
 }
 
@@ -530,5 +566,3 @@ void saveConfig() {
   EEPROM.writeBlock(CONFIG_ADDRESS, config);
   print(0, 1, "Config Saved");
 }
-
-
