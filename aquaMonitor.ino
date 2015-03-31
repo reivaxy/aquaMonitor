@@ -72,6 +72,8 @@ OneWire  ds(TEMPERATURE_PIN);
 #define MAX_DS1820_SENSORS 1
 byte addr[MAX_DS1820_SENSORS][8];
 
+// Okay these globals are pretty bad and still the cause of a few bugs, but the
+// small amount of variable space left me with little choice.
 char msgBuf[70];
 char progMemMsg[60];
 char temperatureMsg[20];
