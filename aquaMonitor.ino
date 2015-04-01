@@ -8,8 +8,10 @@
 #define PHONE_NUMBER_LENGTH 15
 #define MAX_PHONE_NUMBERS 4
 #define CONFIG_ADDRESS 0
+
 // Change this version to reset the EEPROM saved configuration
-#define CONFIG_VERSION 2
+// when either the structure or default values change
+#define CONFIG_VERSION 3
 
 struct phoneConfig {
   unsigned char serviceFlags;
@@ -309,13 +311,13 @@ void checkSMS() {
 unsigned char getServiceFlagFromName(char *serviceName) {
   unsigned char serviceFlag = 0;
 
-  if(strncmp(serviceName, "alert", 5)) {
+  if(0 == strncmp(serviceName, "alert", 5)) {
     serviceFlag = FLAG_SERVICE_ALERT;
-  } else if(strncmp(serviceName, "event", 5)) {
+  } else if(0 == strncmp(serviceName, "event", 5)) {
     serviceFlag = FLAG_SERVICE_EVENT;
-  } else if(strncmp(serviceName, "sub", 3)) {
+  } else if(0 == strncmp(serviceName, "sub", 3)) {
     serviceFlag = FLAG_SERVICE_SUB;
-  } else if(strncmp(serviceName, "unsub", 5)) {
+  } else if(0 == strncmp(serviceName, "unsub", 5)) {
     serviceFlag = FLAG_SERVICE_UNSUB;
   }
   Serial.println(serviceFlag);
@@ -366,7 +368,8 @@ void unsubscribe(char *number, char *serviceName) {
   for(i=0 ; i<MAX_PHONE_NUMBERS; i++) {
     if (0 == strncmp(config.registeredNumbers[i].number, number, PHONE_NUMBER_LENGTH)) {
       // If number found, cancel it
-      config.registeredNumbers[i].serviceFlags &= !serviceFlag;
+      config.registeredNumbers[i].serviceFlags &= (~serviceFlag);
+
       if(0 == config.registeredNumbers[i].serviceFlags) {
         config.registeredNumbers[i].number[0] = 0;
       }
