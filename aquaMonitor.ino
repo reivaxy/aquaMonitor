@@ -1,7 +1,6 @@
 #include <OneWire.h>
 #include <LiquidCrystal.h>
 #include <GSM.h>
-#include <IRremote.h>
 #include <EEPROMex.h>
 #include <EEPROMvar.h>
 
@@ -31,23 +30,6 @@ struct eepromConfig {
 #define FLAG_SERVICE_EVENT   0x02
 #define FLAG_SERVICE_SUB     0x04
 #define FLAG_SERVICE_UNSUB   0x08
-
-// Init IR
-#define IR_PIN 5
-IRrecv reception_ir(IR_PIN);
-decode_results code;
-#define IR_DISPLAY_PHONE_NUMBER 0xF720DF       // (R key on xanlite remote, for now)
-#define IR_INCR_LIGHT_THRESHOLD 0xF700FF       // (light+ on xanlite remote, for now)
-#define IR_DECR_LIGHT_THRESHOLD 0xF7807F       // (light- on xanlite remote, for now)
-#define IR_INCR_TEMP_ADJUSTMENT 0xF740BF       // (OFF on xanlite remote, for now)
-#define IR_DECR_TEMP_ADJUSTMENT 0xF7C03F       // (ON on xanlite remote, for now)
-#define IR_DISPLAY_THRESHOLDS   0xF7A05F       // (V on xanlite remote, for now)
-#define IR_DISPLAY_TEMP_ADJUST  0xF7609F       // (B on xanlite remote, for now)
-#define IR_SAVE_TO_EEPROM       0xF7E817    // ('Lent' on xanlite remote, for now)
-#define IR_LOG_CONFIG           0xF728D7    // jaune clair
-// When a key is maintained pressed, a different code is sent, and we want to repeat the operation
-#define IR_REPEAT_CODE 0xFFFFFFFF
-unsigned long previousCode = 0;
 
 // GSM
 // initialize the library instance
@@ -87,9 +69,6 @@ unsigned long lastTemperatureCheck = millis() - TEMPERATURE_CHECK_PERIOD;
 #define LIGHT_CHECK_PERIOD 5000
 unsigned long lastLightCheck = millis() - LIGHT_CHECK_PERIOD;
 
-#define IR_DISPLAY_TIMEOUT 250
-unsigned long lastIrDisplay = 0;
-
 // Check for incoming sms every 30 seconds
 #define SMS_CHECK_PERIOD 30000
 unsigned long lastSmsCheck = 0;
@@ -110,10 +89,6 @@ void setup(void) {
 
   print(0, 0, getProgMemMsg(INIT_AQUAMON_MSG));
   readConfig();
-  //print(0,0, config.registeredNumbers[0].number);
-  print(0, 1, getProgMemMsg(INIT_IR_MSG));
-  reception_ir.enableIRIn(); // init receiver
-  delay(250);
 
   print(0, 1, getProgMemMsg(TEMP_INIT_MSG));
   if (!ds.search(addr[0]))
@@ -157,12 +132,6 @@ char * getProgMemMsg(int messageId) {
 
 void loop(void) {
   unsigned long now = millis();
-  
-  // Check if an IR code was received
-  if (reception_ir.decode(&code)) { 
-    processIRCode(code);
-    reception_ir.resume(); // be ready for next code 
-  }
 
   if((now - lastLightCheck) >= LIGHT_CHECK_PERIOD) {
     statusOK = statusOK && checkLight();
@@ -172,9 +141,7 @@ void loop(void) {
     statusOK = statusOK && checkTemperature();
     lastTemperatureCheck = millis();
   }
-  if((now - lastIrDisplay) >= IR_DISPLAY_TIMEOUT) {
-    resetIRDisplay();
-  }
+
   if((now - lastSmsCheck) >= SMS_CHECK_PERIOD) {
     checkSMS();
     lastSmsCheck = now;
@@ -442,74 +409,6 @@ void print(int col, int row, const char* displayMsg) {
 
   lcd.setCursor(col, row);
   lcd.print(lcdBuf);
-}
-
-// Remove the IR indicators from the LCD display
-void resetIRDisplay() {
-  //lcd.setCursor(14,0);
-  //lcd.print("  ");
-  lcd.setCursor(15,1);
-  lcd.print(" ");
-}
-
-// Check if an IR code was received and process it according to its value
-void processIRCode(decode_results code) {
-  unsigned long irCode = code.value;
-  char msgBuf[70];
-  if((irCode == IR_REPEAT_CODE) && (0 != previousCode)) {
-    irCode = previousCode;
-  }
-  previousCode = irCode;
-  lastIrDisplay = millis();
-  Serial.println(irCode, HEX);
-  //print(14, 0, "ir");
-  switch(irCode) {
-    case IR_DISPLAY_PHONE_NUMBER:
-      // loop over config
-    break;
-    case IR_INCR_LIGHT_THRESHOLD:
-      config.lightThreshold ++;
-      sprintf(msgBuf, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
-      print(0, 1, msgBuf);
-    break;
-    case IR_DECR_LIGHT_THRESHOLD:
-      config.lightThreshold --;
-      sprintf(msgBuf, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
-      print(0, 1, msgBuf);
-    break;
-
-    case IR_INCR_TEMP_ADJUSTMENT:
-      config.temperatureAdjustment ++;
-      sprintf(msgBuf, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
-      print(0, 1, msgBuf);
-    break;
-    case IR_DECR_TEMP_ADJUSTMENT:
-      config.temperatureAdjustment --;
-      sprintf(msgBuf, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
-      print(0, 1, msgBuf);
-    break;
-
-    case IR_DISPLAY_THRESHOLDS:
-      sprintf(msgBuf, getProgMemMsg(TEMPERATURE_THRESHOLD_MSG_FORMAT), config.temperatureLowThreshold, config.temperatureHighThreshold);
-      print(0, 0, msgBuf);
-      sprintf(msgBuf, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
-      print(0, 1, msgBuf);
-    break;
-
-    case IR_DISPLAY_TEMP_ADJUST:
-      sprintf(msgBuf, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
-      print(0, 0, msgBuf);
-    break;
-
-    case IR_SAVE_TO_EEPROM:
-      saveConfig();
-    break;
-    case IR_LOG_CONFIG:
-      logConfig();
-    break;
-    default:
-      print(15, 1, "?");
-  }
 }
 
 void logConfig() {
