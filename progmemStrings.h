@@ -20,10 +20,10 @@ const char sendingSMSMsg[] PROGMEM = {"Sending SMS..."};
 const char lightThresholdMsgFormat[] PROGMEM = {"Light th: %d"};
 const char temperatureAdjustmentMsgFormat[] PROGMEM = {"Temp Adj: %d"};
 const char temperatureThresholdMsgFormat[] PROGMEM = {"Temp: %d %d"};
-const char numberSubscribedMsg[] PROGMEM = {"Number %s was subscribed to service %s"};
-const char numberNotSubscribedMsg[] PROGMEM = {"Number %s was NOT subscribed to service %s: full"};
-const char numberUnsubscribedMsg[] PROGMEM = {"Number %s was unsubscribed to service %s"};
-const char numberNotUnsubscribedMsg[] PROGMEM = {"Number %s was not unsubscribed to service %s: not found"};
+const char numberSubscribedMsg[] PROGMEM = {"Sub to %s done"};
+const char numberNotSubscribedMsg[] PROGMEM = {"Sub to %s failed: full"};
+const char numberUnsubscribedMsg[] PROGMEM = {"Unsub to %s done"};
+const char numberNotUnsubscribedMsg[] PROGMEM = {"Unsub to %s failed: not found"};
 
 
 

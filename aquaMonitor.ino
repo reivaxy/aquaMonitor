@@ -76,7 +76,6 @@ byte addr[MAX_DS1820_SENSORS][8];
 
 // Okay these globals are pretty bad and still the cause of a few bugs, but the
 // small amount of variable space left me with little choice.
-char msgBuf[70];
 #define PROGMEM_MSG_MAX_SIZE 60
 char progMemMsg[PROGMEM_MSG_MAX_SIZE + 1];
 char temperatureMsg[20];
@@ -259,6 +258,7 @@ boolean checkLight() {
 void checkSMS() {
   char from[PHONE_NUMBER_LENGTH + 1];
   char service[20];
+  char msgIn[20];
   char c,i;
   int cptr = 0;
   if(!gsmEnabled) return;
@@ -282,19 +282,22 @@ void checkSMS() {
         if ((c > 64) && (c < 91)) {
           c = c + 32;
         }
-        msgBuf[cptr++] = c;
+        msgIn[cptr++] = c;
       }
-      msgBuf[cptr] = 0;
-      Serial.println(msgBuf);
-      if(strncmp(msgBuf, "status", 6) == 0) {
+      msgIn[cptr] = 0;
+      // Delete message from modem memory
+      sms.flush();
+      
+      Serial.println(msgIn);
+      if(strncmp(msgIn, "status", 6) == 0) {
         sendStatus(from);
-      } else if(strncmp(msgBuf, "sub ", 3) == 0) {
-        sscanf(msgBuf, "sub %s", service);
+      } else if(strncmp(msgIn, "sub ", 3) == 0) {
+        sscanf(msgIn, "sub %s", service);
         subscribe(from, service);
-      } else if(strncmp(msgBuf, "unsub ",5) == 0) {
-        sscanf(msgBuf, "unsub %s", service);
+      } else if(strncmp(msgIn, "unsub ",5) == 0) {
+        sscanf(msgIn, "unsub %s", service);
         unsubscribe(from, service);
-      } else if(strncmp(msgBuf, "reset sub", 9) == 0) {
+      } else if(strncmp(msgIn, "reset sub", 9) == 0) {
         config.registeredNumbers[0].serviceFlags = 0xFF;
         strcpy(config.registeredNumbers[0].number, REMOTE_NUMBER);
         for(i=1 ; i < MAX_PHONE_NUMBERS; i++ ) {
@@ -302,8 +305,6 @@ void checkSMS() {
           config.registeredNumbers[i].number[0] = 0;
         }
       }
-      // Delete message from modem memory
-      sms.flush();
     }
   }
 }
@@ -328,6 +329,7 @@ void subscribe(char *number, char *serviceName) {
   unsigned char serviceFlag;
   unsigned char i, firstFree = MAX_PHONE_NUMBERS;
   boolean done = false;
+  char msgBuf[70];
 
   serviceFlag = getServiceFlagFromName(serviceName);
   // Check if number is already in the config
@@ -350,10 +352,10 @@ void subscribe(char *number, char *serviceName) {
     }
   }
   if(done) {
-    sprintf(msgBuf, getProgMemMsg(NUMBER_SUBSCRIBED_MSG), number, serviceName);
+    sprintf(msgBuf, getProgMemMsg(NUMBER_SUBSCRIBED_MSG), serviceName);
     sendSMS(number, msgBuf);
   } else {
-    sprintf(msgBuf, getProgMemMsg(NUMBER_NOT_SUBSCRIBED_MSG), number, serviceName);
+    sprintf(msgBuf, getProgMemMsg(NUMBER_NOT_SUBSCRIBED_MSG), serviceName);
     sendSMS(number, msgBuf);
   }
 }
@@ -362,6 +364,7 @@ void unsubscribe(char *number, char *serviceName) {
   unsigned char serviceFlag;
   unsigned char i;
   boolean done = false;
+  char msgBuf[70];
 
   serviceFlag = getServiceFlagFromName(serviceName);
   // look for number
@@ -377,10 +380,10 @@ void unsubscribe(char *number, char *serviceName) {
     }
   }
   if(done) {
-    sprintf(msgBuf, getProgMemMsg(NUMBER_UNSUBSCRIBED_MSG), number, serviceName);
+    sprintf(msgBuf, getProgMemMsg(NUMBER_UNSUBSCRIBED_MSG), serviceName);
     sendSMS(number, msgBuf);
   } else {
-    sprintf(msgBuf, getProgMemMsg(NUMBER_NOT_UNSUBSCRIBED_MSG), number, serviceName);
+    sprintf(msgBuf, getProgMemMsg(NUMBER_NOT_UNSUBSCRIBED_MSG), serviceName);
     sendSMS(number, msgBuf);
   }
 }
@@ -452,6 +455,7 @@ void resetIRDisplay() {
 // Check if an IR code was received and process it according to its value
 void processIRCode(decode_results code) {
   unsigned long irCode = code.value;
+  char msgBuf[70];
   if((irCode == IR_REPEAT_CODE) && (0 != previousCode)) {
     irCode = previousCode;
   }
