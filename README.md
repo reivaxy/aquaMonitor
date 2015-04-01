@@ -16,10 +16,10 @@ When complete, will probably not fit on Arduino UNO.
 * Light periodical measurement
 * LCD display of these measures
 * Sending SMS with light and temperature when thresholds are reached
-<del>* Adjusting the low light alarm threshold by IR remote control & LCD display
-* Adjusting the temperature value by IR remote control & LCD display
-* Displaying the (hardcoded) low and high temperature alarm thresholds by IR remote control & LCD display
-* Displaying the (hardocded) SMS recipient phone number by IR remote control & LCD display</del>
+* <del>Adjusting the low light alarm threshold by IR remote control & LCD display</del>
+* <del>Adjusting the temperature value by IR remote control & LCD display</del>
+* <del>Displaying the (hardcoded) low and high temperature alarm thresholds by IR remote control & LCD display</del>
+* <del>Displaying the (hardocded) SMS recipient phone number by IR remote control & LCD display</del>
 * Limitation on how often alarm SMS can be sent (still hardcoded)
 * Periodical checking for incoming SMS
   * 'status': send SMS back with current measures
