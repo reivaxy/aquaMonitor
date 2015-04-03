@@ -224,7 +224,6 @@ boolean checkLight() {
 // Check for incoming SMS, and processes it if any
 void checkSMS() {
   char from[PHONE_NUMBER_LENGTH + 1];
-  char service[20];
   char msgIn[20];
   char c,i;
   int cptr = 0;
@@ -256,14 +255,20 @@ void checkSMS() {
       sms.flush();
       
       Serial.println(msgIn);
-      if(strncmp(msgIn, "status", 6) == 0) {
+      if(strncmp(msgIn, "config", 6) == 0) {
+        sendConfig(from);
+      } else if(strncmp(msgIn, "temp ", 5) == 0) {
+        configTemperatureThresholds(from, msgIn);
+      } else if(strncmp(msgIn, "light ", 6) == 0) {
+        configLightThreshold(from, msgIn);
+      } else if(strncmp(msgIn, "save", 4) == 0) {
+        saveConfig(from);
+      } else if(strncmp(msgIn, "status", 6) == 0) {
         sendStatus(from);
       } else if(strncmp(msgIn, "sub ", 3) == 0) {
-        sscanf(msgIn, "sub %s", service);
-        subscribe(from, service);
+        subscribe(from, msgIn);
       } else if(strncmp(msgIn, "unsub ",5) == 0) {
-        sscanf(msgIn, "unsub %s", service);
-        unsubscribe(from, service);
+        unsubscribe(from, msgIn);
       } else if(strncmp(msgIn, "reset sub", 9) == 0) {
         config.registeredNumbers[0].serviceFlags = 0xFF;
         strcpy(config.registeredNumbers[0].number, REMOTE_NUMBER);
@@ -292,11 +297,29 @@ unsigned char getServiceFlagFromName(char *serviceName) {
   return serviceFlag;
 }
 
-void subscribe(char *number, char *serviceName) {
+void configLightThreshold(char *from, char *msgIn) {
+  int threshold;
+  sscanf(msgIn, "light %d", &threshold);
+  config.lightThreshold = threshold;
+  sendSMS(from, "Light threshold set");
+}
+
+void configTemperatureThresholds(char *from, char *msgIn) {
+  int low, high;
+  sscanf(msgIn, "temp %d %d", &low, &high);
+  config.temperatureHighThreshold = high;
+  config.temperatureLowThreshold = low;
+  sendSMS(from, "Temp thresholds set");
+}
+
+void subscribe(char *number, char *msgIn) {
   unsigned char serviceFlag;
   unsigned char i, firstFree = MAX_PHONE_NUMBERS;
   boolean done = false;
   char msgBuf[70];
+  char serviceName[10];
+
+  sscanf(msgIn, "sub %s", serviceName);
 
   serviceFlag = getServiceFlagFromName(serviceName);
   // Check if number is already in the config
@@ -327,12 +350,14 @@ void subscribe(char *number, char *serviceName) {
   }
 }
 
-void unsubscribe(char *number, char *serviceName) {
+void unsubscribe(char *number, char *msgIn) {
   unsigned char serviceFlag;
   unsigned char i;
   boolean done = false;
   char msgBuf[70];
+  char serviceName[10];
 
+  sscanf(msgIn, "unsub %s", serviceName);
   serviceFlag = getServiceFlagFromName(serviceName);
   // look for number
   for(i=0 ; i<MAX_PHONE_NUMBERS; i++) {
@@ -411,14 +436,22 @@ void print(int col, int row, const char* displayMsg) {
   lcd.print(lcdBuf);
 }
 
-void logConfig() {
+void sendConfig(char *toNumber) {
   char i;
-  for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
-    Serial.println(i);
-    Serial.println(config.registeredNumbers[i].number);
-    Serial.println(config.registeredNumbers[i].serviceFlags);
-  }
+  char message[40];
+  sms.beginSMS(toNumber);
 
+  sprintf(message, "Light threshold: %d, ", config.lightThreshold);
+  sms.print(message);
+  sprintf(message, "Temp thresholds: %d %d, ", config.temperatureLowThreshold, config.temperatureHighThreshold);
+  sms.print(message);
+  for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
+    if(config.registeredNumbers[i].number[0] != 0) {
+      sprintf(message, "%s %2X,", config.registeredNumbers[i].number, config.registeredNumbers[i].serviceFlags);
+      sms.print(message);
+    }
+  }
+  sms.endSMS();
 }
 
 void readConfig() {
@@ -445,8 +478,8 @@ void readConfig() {
   }
 }
 
-void saveConfig() {
+void saveConfig(char *toNumber) {
   print(0, 0, "Saving config");
   EEPROM.writeBlock(CONFIG_ADDRESS, config);
-  print(0, 1, "Config Saved");
+  sendSMS(toNumber, "Config Saved");
 }
