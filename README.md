@@ -35,6 +35,10 @@ When complete, will probably not fit on Arduino UNO.
 * backuped power (and alert) in case of power failure
 * Saving periodical measure data on SD card (and may be info about sent and received SMS)
 * Change configuration using inbound SMS: thresholds, activation/deactivation of alerting feature, ...
+* Make IR support (and may be LCD screen support) optional through compilation directives.
+  Although this frees program memory, it strangely does not seem to free variable memory, hence the WithouIR branch for now
+
+
 
 #Licence
 ...to kill.
