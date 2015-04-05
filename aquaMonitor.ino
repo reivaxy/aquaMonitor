@@ -193,6 +193,8 @@ void setup(void) {
     }
   }
   delay(500);
+  // Not working... TODO investigate
+  // sendSMS(config.registeredNumbers[0].number, getProgMemMsg(BUILD_MSG));
 #if WITH_LCD_SUPPORT
   lcd.clear();
 #endif
@@ -334,11 +336,11 @@ void checkSMS() {
   int cptr = 0;
   if(!gsmEnabled) return;
   Serial.println(getProgMemMsg(CHECK_SMS_MSG));
-  // Process all incoming SMS
+  // TODO : loop to process all incoming SMS
   while (sms.available())
   {
     Serial.println(getProgMemMsg(FROM_NUMBER_MSG));
-
+    cptr = 0;
     // Get remote number
     sms.remoteNumber(from, 20);
     Serial.println(from);
@@ -378,12 +380,8 @@ void checkSMS() {
       } else if(strncmp(msgIn, "unsub ",5) == 0) {   // Sender wants to unsuscrive to give service
         unsubscribe(from, msgIn);
       } else if(strncmp(msgIn, "reset sub", 9) == 0) {  // Sender wants to cancel all subscriptions
-        config.registeredNumbers[0].permissionFlags = 0xFF;
-        strcpy(config.registeredNumbers[0].number, REMOTE_NUMBER);
-        for(i=1 ; i < MAX_PHONE_NUMBERS; i++ ) {
-          config.registeredNumbers[i].permissionFlags = 0;
-          config.registeredNumbers[i].number[0] = 0;
-        }
+        resetSub();
+        sendSMS(from, getProgMemMsg(RESET_SUB_DONE_MSG));
       } else {
         // Don't send an SMS back, waste no more time.
         print(0, 1, getProgMemMsg(NUMBER_SUBSCRIBED_MSG));
@@ -413,7 +411,7 @@ void setLightThreshold(char *from, char *msgIn) {
   int threshold;
   sscanf(msgIn, "light %d", &threshold);
   config.lightThreshold = threshold;
-  sendSMS(from, "Light threshold set");
+  sendSMS(from, getProgMemMsg(LIGHT_THRESHOLD_SET_MSG));
 }
 
 // Set the temperatures thresholds below or above which an alert will be sent
@@ -422,7 +420,7 @@ void setTemperatureThresholds(char *from, char *msgIn) {
   sscanf(msgIn, "temp %d %d", &low, &high);
   config.temperatureHighThreshold = high;
   config.temperatureLowThreshold = low;
-  sendSMS(from, "Temp thresholds set");
+  sendSMS(from, getProgMemMsg(TEMPERATURE_THRESHOLDS_SET_MSG));
 }
 
 // Set the temperature adjustment parameter
@@ -430,7 +428,7 @@ void setTemperatureAdjustment(char *from, char *msgIn) {
   int adj;
   sscanf(msgIn, "temp adj %d", &adj);
   config.temperatureAdjustment = adj;
-  sendSMS(from, "Temp Adjustment  set");
+  sendSMS(from, getProgMemMsg(TEMPERATURE_ADJUSTMENT_SET_MSG));
 }
 
 // Subscribe a number to a service
@@ -525,23 +523,26 @@ void sendStatus(char *toNumber) {
 
 // Send any kind of SMS to any give number
 void sendSMS(char *toNumber, char *message) {
+  char msg[200];
+  // If message comes from progmem, it's in a global :(
+  // that will be re used a few lines below
+  strncpy(msg, message, 199);
+  msg[199] = 0;
   if(toNumber[0] == 0) return;
   print(0, 0, getProgMemMsg(SENDING_SMS_MSG));
-  print(0, 1, "To: ");
-  print(4, 1, toNumber);
-  Serial.println(message);
+  Serial.println(msg);
 
   // send the message
   if(gsmEnabled) {
     sms.beginSMS(toNumber);
-    sms.print(message);
+    sms.print(msg);
     sms.endSMS();
     print(0, 0, getProgMemMsg(SMS_SENT_MSG));
   }
 }
 
 // Display a message to Serial console and on the LCD display if supported
-void print(int col, int row, const char* displayMsg) {
+void print(int col, int row, char* displayMsg) {
   Serial.println(displayMsg);
 #if WITH_LCD_SUPPORT
   char lcdBuf[LCD_WIDTH + 1];
@@ -649,22 +650,32 @@ void logConfig() {
 // Send SMS with all configuration. Only if requesting number has the 'admin' flag set in config
 void sendConfig(char *toNumber) {
   char i;
-  char message[40];
-
+  char message[100];
+  char space[] = ", ";
   if(!checkAdmin(toNumber)) {
     sendSMS(toNumber, getProgMemMsg(ACCESS_DENIED_MSG));
     return;
   }
   sms.beginSMS(toNumber);
+  sprintf(message, getProgMemMsg(BUILD_MSG));
+  sms.print(message);
+  sms.print(space);
   sprintf(message, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
   sms.print(message);
-  sms.print(", ");
+  sms.print(space);
+
+  sprintf(message, getProgMemMsg(LIGHT_SCHEDULE_MSG_FORMAT),
+                config.lightOnHour, config.lightOnMinute,
+                config.lightOffHour, config.lightOffMinute);
+  sms.print(message);
+  sms.print(space);
+
   sprintf(message, getProgMemMsg(TEMPERATURE_THRESHOLD_MSG_FORMAT), config.temperatureLowThreshold, config.temperatureHighThreshold);
   sms.print(message);
-  sms.print(", ");
+  sms.print(space);
   sprintf(message, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
   sms.print(message);
-  sms.print(", ");
+  sms.print(space);
   for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
     if(config.registeredNumbers[i].number[0] != 0) {
       sprintf(message, "%s %2X,", config.registeredNumbers[i].number, config.registeredNumbers[i].permissionFlags);
@@ -707,22 +718,27 @@ void readConfig() {
     config.lightOffHour = 20;
     config.lightOffMinute = 30;
 
-    // Reset all saved numbers
-    // First one is main number, hardcoded, admin and subscribed to all services
-    for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
-      if(i == 0) {
-        config.registeredNumbers[i].permissionFlags = 0xFF;
-        strcpy(config.registeredNumbers[i].number, REMOTE_NUMBER);
-      } else {
-        config.registeredNumbers[i].permissionFlags = 0;
-        config.registeredNumbers[i].number[0] = 0;
-      }
-      config.registeredNumbers[i].lastAlertSmsTime = 0;
-      config.registeredNumbers[i].minAlertInterval = 60 * 30; // Every 30 minutes = 1800 seconds
-    }
-
+    // Reset all subscriptions
+    resetSub();
     // Should we automatically save ? or wait for a save request ?
     saveConfig("");
+  }
+}
+
+// reset all subscriptions and admin number
+void resetSub() {
+  char i;
+  // First one is main number, hardcoded, admin and subscribed to all services
+  for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
+    if(i == 0) {
+      config.registeredNumbers[i].permissionFlags = 0xFF;
+      strcpy(config.registeredNumbers[i].number, REMOTE_NUMBER);
+    } else {
+      config.registeredNumbers[i].permissionFlags = 0;
+      config.registeredNumbers[i].number[0] = 0;
+    }
+    config.registeredNumbers[i].lastAlertSmsTime = 0;
+    config.registeredNumbers[i].minAlertInterval = 60 * 30; // Every 30 minutes = 1800 seconds
   }
 }
 
