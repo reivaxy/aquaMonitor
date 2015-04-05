@@ -17,6 +17,7 @@ const char checkSMSMsg[] PROGMEM = {"Checking SMS"};
 const char fromNumberMsg[] PROGMEM = {"Msg received from:"};
 const char discardSMSMsg[] PROGMEM = {"Discard SMS"};
 const char sendingSMSMsg[] PROGMEM = {"Sending SMS..."};
+const char SMSSentMsg[] PROGMEM = {"SMS sent"};
 const char lightThresholdMsgFormat[] PROGMEM = {"Light th: %d"};
 const char temperatureAdjustmentMsgFormat[] PROGMEM = {"Temp Adj: %d"};
 const char temperatureThresholdMsgFormat[] PROGMEM = {"Temp: %d %d"};
@@ -24,7 +25,9 @@ const char numberSubscribedMsg[] PROGMEM = {"Sub to %s done"};
 const char numberNotSubscribedMsg[] PROGMEM = {"Sub to %s failed: full"};
 const char numberUnsubscribedMsg[] PROGMEM = {"Unsub to %s done"};
 const char numberNotUnsubscribedMsg[] PROGMEM = {"Unsub to %s failed: not found"};
-
+const char savingConfigMsg[] PROGMEM = {"Saving config"};
+const char configSavedMsg[] PROGMEM = {"Config saved"};
+const char readingConfigMsg[] PROGMEM = {"Reading config"};
 
 
 #define INIT_AQUAMON_MSG 0
@@ -43,17 +46,22 @@ const char numberNotUnsubscribedMsg[] PROGMEM = {"Unsub to %s failed: not found"
 #define FROM_NUMBER_MSG 13
 #define DISCARD_SMS_MSG 14
 #define SENDING_SMS_MSG 15
-#define LIGHT_THRESHOLD_MSG_FORMAT 16
-#define TEMPERATURE_ADJUSTMENT_MSG_FORMAT 17
-#define TEMPERATURE_THRESHOLD_MSG_FORMAT 18
-#define NUMBER_SUBSCRIBED_MSG 19
-#define NUMBER_NOT_SUBSCRIBED_MSG 20
-#define NUMBER_UNSUBSCRIBED_MSG 21
-#define NUMBER_NOT_UNSUBSCRIBED_MSG 22
+#define SMS_SENT_MSG 16
+#define LIGHT_THRESHOLD_MSG_FORMAT 17
+#define TEMPERATURE_ADJUSTMENT_MSG_FORMAT 18
+#define TEMPERATURE_THRESHOLD_MSG_FORMAT 19
+#define NUMBER_SUBSCRIBED_MSG 20
+#define NUMBER_NOT_SUBSCRIBED_MSG 21
+#define NUMBER_UNSUBSCRIBED_MSG 22
+#define NUMBER_NOT_UNSUBSCRIBED_MSG 23
+#define SAVING_CONFIG_MSG 24
+#define CONFIG_SAVED_MSG 25
+#define READING_CONFIG_MSG 26
 
 const char* const messages[] PROGMEM = {initAquamonMsg, initIRMsg, tempInitMsg, addrErrMsg, initGSMMsg, connectingGSMMsg,
    connectedGSMMsg, notConnectedGSMMsg, crcNotValidMsg, familyMsg, temperatureMsgFormat, lightMsgFormat, checkSMSMsg,
-   fromNumberMsg, discardSMSMsg, sendingSMSMsg, lightThresholdMsgFormat, temperatureAdjustmentMsgFormat,
-   temperatureThresholdMsgFormat, numberSubscribedMsg, numberNotSubscribedMsg, numberUnsubscribedMsg, numberNotUnsubscribedMsg
+   fromNumberMsg, discardSMSMsg, sendingSMSMsg, SMSSentMsg, lightThresholdMsgFormat, temperatureAdjustmentMsgFormat,
+   temperatureThresholdMsgFormat, numberSubscribedMsg, numberNotSubscribedMsg, numberUnsubscribedMsg, numberNotUnsubscribedMsg,
+   savingConfigMsg, configSavedMsg, readingConfigMsg,
 };
 
