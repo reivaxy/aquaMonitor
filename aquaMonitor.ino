@@ -12,6 +12,8 @@ __asm volatile ("nop");
 
 
 // 'admin' phone number defined outside of open source file haha !
+// This file should contain a line in the likes of:
+// #define REMOTE_NUMBER "+12345678910", which is the international number notation
 #include <remoteNumber.h>
 
 // Compilation directives to enable/disable stuff like IR support
@@ -332,7 +334,8 @@ void checkSMS() {
   int cptr = 0;
   if(!gsmEnabled) return;
   Serial.println(getProgMemMsg(CHECK_SMS_MSG));
-  if (sms.available())
+  // Process all incoming SMS
+  while (sms.available())
   {
     Serial.println(getProgMemMsg(FROM_NUMBER_MSG));
 
@@ -358,7 +361,9 @@ void checkSMS() {
       sms.flush();
       
       Serial.println(msgIn);
-      if(strncmp(msgIn, "config", 6) == 0) {         // Sender wants to receive configuration
+      if(strncmp(msgIn, "temp adj ", 9) == 0) {       // Sender wants to set temperature adjustment
+        setTemperatureAdjustment(from, msgIn);
+      } else if(strncmp(msgIn, "config", 6) == 0) {   // Sender wants to receive configuration
         sendConfig(from);
       } else if(strncmp(msgIn, "temp ", 5) == 0) {   // Sender wants to set temperture thresholds
         setTemperatureThresholds(from, msgIn);
@@ -379,6 +384,9 @@ void checkSMS() {
           config.registeredNumbers[i].permissionFlags = 0;
           config.registeredNumbers[i].number[0] = 0;
         }
+      } else {
+        // Don't send an SMS back, waste no more time.
+        print(0, 1, getProgMemMsg(NUMBER_SUBSCRIBED_MSG));
       }
     }
   }
@@ -415,6 +423,14 @@ void setTemperatureThresholds(char *from, char *msgIn) {
   config.temperatureHighThreshold = high;
   config.temperatureLowThreshold = low;
   sendSMS(from, "Temp thresholds set");
+}
+
+// Set the temperature adjustment parameter
+void setTemperatureAdjustment(char *from, char *msgIn) {
+  int adj;
+  sscanf(msgIn, "temp adj %d", &adj);
+  config.temperatureAdjustment = adj;
+  sendSMS(from, "Temp Adjustment  set");
 }
 
 // Subscribe a number to a service
@@ -635,8 +651,10 @@ void sendConfig(char *toNumber) {
   char i;
   char message[40];
 
-  if(!checkAdmin(toNumber)) return;
-
+  if(!checkAdmin(toNumber)) {
+    sendSMS(toNumber, getProgMemMsg(ACCESS_DENIED_MSG));
+    return;
+  }
   sms.beginSMS(toNumber);
   sprintf(message, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
   sms.print(message);
@@ -661,7 +679,7 @@ boolean checkAdmin(char *number) {
   boolean isAdmin = false;
   char i;
   for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
-    if(strncmp(config.registeredNumbers[i].number, number, PHONE_NUMBER_LENGTH)) {
+    if(0 == strncmp(config.registeredNumbers[i].number, number, PHONE_NUMBER_LENGTH)) {
       if(config.registeredNumbers[i].permissionFlags & FLAG_ADMIN) {
         isAdmin = true;
         break;

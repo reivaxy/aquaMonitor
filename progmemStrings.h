@@ -28,7 +28,8 @@ const char numberNotUnsubscribedMsg[] PROGMEM = {"Unsub to %s failed: not found"
 const char savingConfigMsg[] PROGMEM = {"Saving config"};
 const char configSavedMsg[] PROGMEM = {"Config saved"};
 const char readingConfigMsg[] PROGMEM = {"Reading config"};
-
+const char accessDeniedMsg[] PROGMEM = {"Access denied"};
+const char unknownMsg[] PROGMEM = {"Unknown message"};
 
 #define INIT_AQUAMON_MSG 0
 #define INIT_IR_MSG 1
@@ -57,11 +58,13 @@ const char readingConfigMsg[] PROGMEM = {"Reading config"};
 #define SAVING_CONFIG_MSG 24
 #define CONFIG_SAVED_MSG 25
 #define READING_CONFIG_MSG 26
+#define ACCESS_DENIED_MSG 27
+#define UNKNOWN_MSG 28
 
 const char* const messages[] PROGMEM = {initAquamonMsg, initIRMsg, tempInitMsg, addrErrMsg, initGSMMsg, connectingGSMMsg,
    connectedGSMMsg, notConnectedGSMMsg, crcNotValidMsg, familyMsg, temperatureMsgFormat, lightMsgFormat, checkSMSMsg,
    fromNumberMsg, discardSMSMsg, sendingSMSMsg, SMSSentMsg, lightThresholdMsgFormat, temperatureAdjustmentMsgFormat,
    temperatureThresholdMsgFormat, numberSubscribedMsg, numberNotSubscribedMsg, numberUnsubscribedMsg, numberNotUnsubscribedMsg,
-   savingConfigMsg, configSavedMsg, readingConfigMsg,
+   savingConfigMsg, configSavedMsg, readingConfigMsg, accessDeniedMsg, unknownMsg,
 };
 
