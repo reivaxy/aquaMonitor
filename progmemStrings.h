@@ -72,6 +72,11 @@ const char temperatureThresholdsSetMsg[] PROGMEM = {"Temp thresholds set"};
 #define TEMPERATURE_THRESHOLDS_SET_MSG 33
 const char lightThresholdSetMsg[] PROGMEM = {"Light threshold set"};
 #define LIGHT_THRESHOLD_SET_MSG 34
+const char intervalSetMsg[] PROGMEM = {"Interval set"};
+#define INTERVAL_SET_MSG 35
+const char unknownNumberMsg[] PROGMEM = {"Unknown number"};
+#define UNKNOWN_NUMBER_MSG 36
+
 
 const char* const messages[] PROGMEM = {
    initAquamonMsg, initIRMsg, tempInitMsg, addrErrMsg, initGSMMsg,   // 0 to 4
@@ -80,6 +85,7 @@ const char* const messages[] PROGMEM = {
    sendingSMSMsg, SMSSentMsg, lightThresholdMsgFormat, temperatureAdjustmentMsgFormat, temperatureThresholdMsgFormat,  // 15 TO 19
    numberSubscribedMsg, numberNotSubscribedMsg, numberUnsubscribedMsg, numberNotUnsubscribedMsg, savingConfigMsg,      // 20 TO 24
    configSavedMsg, readingConfigMsg, accessDeniedMsg, unknownMsg, buildMsg,    // 25 TO 29
-   resetSubDoneMsg, lightScheduleMsgFormat, temperatureAdjustmentSetMsg, temperatureThresholdsSetMsg, lightThresholdSetMsg
+   resetSubDoneMsg, lightScheduleMsgFormat, temperatureAdjustmentSetMsg, temperatureThresholdsSetMsg, lightThresholdSetMsg,
+   intervalSetMsg, unknownNumberMsg
 };
 

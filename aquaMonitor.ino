@@ -32,13 +32,13 @@ __asm volatile ("nop");
 
 // Change this version to reset the EEPROM saved configuration
 // when the structure changes
-#define CONFIG_VERSION 4
+#define CONFIG_VERSION 5
 
 struct phoneConfig {
   unsigned char permissionFlags;
   char number[PHONE_NUMBER_LENGTH + 1];
   unsigned long lastAlertSmsTime;  // When was last time (millis()) an alert SMS sent to that number
-  unsigned long minAlertInterval;  // minimum interval in seconds between 2 alert SMS to avoir flooding 
+  unsigned long minAlertInterval;  // minimum interval in milliseconds between 2 alert SMS to avoir flooding
 };
 
 struct eepromConfig {
@@ -130,15 +130,13 @@ unsigned long lastLightCheck = millis() - LIGHT_CHECK_PERIOD;
 #define SMS_CHECK_PERIOD 30000
 unsigned long lastSmsCheck = 0;
 
-#define MIN_SMS_SEND_DELAY 30000
-unsigned long lastSmsSent = 0;
 // Max size of a received SMS
 #define MAX_SMS_LENGTH 20
 boolean gsmEnabled = !false;
 
 boolean statusOK = true;
 
-DS1307 clock; // The RTC handle to get date
+DS1307 clock; // The RTC handle to get date and time
 
 // System initialization
 void setup(void) {
@@ -220,7 +218,7 @@ void loop(void) {
     processIRCode(code.value);
     reception_ir.resume(); // be ready for next code
   }
-  if((now - lastIrDisplay) >= IR_DISPLAY_TIMEOUT) {
+  if(checkElapsedDelay(now, lastIrDisplay, IR_DISPLAY_TIMEOUT)) {
     resetIRDisplay();
   }
 #endif
@@ -235,13 +233,12 @@ void loop(void) {
   }
   if(checkElapsedDelay(now, lastSmsCheck, SMS_CHECK_PERIOD)) {
     checkSMS();
-    lastSmsCheck = now;
+    lastSmsCheck = millis(); // checkSMS is a bit slow.
   }
 
-  if(!statusOK && checkElapsedDelay(now, lastSmsSent, MIN_SMS_SEND_DELAY)) {
+  if(!statusOK) {
     sendAlert();
     statusOK = true;
-    lastSmsSent = now;
   }
 }
 
@@ -363,28 +360,34 @@ void checkSMS() {
       sms.flush();
       
       Serial.println(msgIn);
-      if(strncmp(msgIn, "temp adj ", 9) == 0) {       // Sender wants to set temperature adjustment
+      if(msgIn == strstr(msgIn, "interval ")) {   // Sender wants to set his alert minimum interval (seconds)
+        setAlertInterval(from, msgIn);
+      } else if(msgIn == strstr(msgIn, "temp adj ")) {       // Sender wants to set temperature adjustment
         setTemperatureAdjustment(from, msgIn);
-      } else if(strncmp(msgIn, "config", 6) == 0) {   // Sender wants to receive configuration
+      } else if(msgIn == strstr(msgIn, "config")) {   // Sender wants to receive configuration
         sendConfig(from);
-      } else if(strncmp(msgIn, "temp ", 5) == 0) {   // Sender wants to set temperture thresholds
+      } else if(msgIn == strstr(msgIn, "temp ")) {   // Sender wants to set temperture thresholds
         setTemperatureThresholds(from, msgIn);
-      } else if(strncmp(msgIn, "light ", 6) == 0) {  // Sender wants to set light threshold
+      } else if(msgIn == strstr(msgIn, "light ")) {  // Sender wants to set light threshold
         setLightThreshold(from, msgIn);
-      } else if(strncmp(msgIn, "save", 4) == 0) {    // Sender wants config to be saved to EEPROM
+      } else if(msgIn == strstr(msgIn, "save")) {    // Sender wants config to be saved to EEPROM
         saveConfig(from);
-      } else if(strncmp(msgIn, "status", 6) == 0) {  // Sender wants to receive current measurements
+      } else if(msgIn == strstr(msgIn, "status")) {  // Sender wants to receive current measurements
         sendStatus(from);
-      } else if(strncmp(msgIn, "sub ", 3) == 0) {    // Sender wants to subscribe to given service
+      } else if(msgIn == strstr(msgIn, "sub ")) {    // Sender wants to subscribe to given service
         subscribe(from, msgIn);
-      } else if(strncmp(msgIn, "unsub ",5) == 0) {   // Sender wants to unsuscrive to give service
+      } else if(msgIn == strstr(msgIn, "unsub ")) {   // Sender wants to unsuscrive to give service
         unsubscribe(from, msgIn);
-      } else if(strncmp(msgIn, "reset sub", 9) == 0) {  // Sender wants to cancel all subscriptions
-        resetSub();
-        sendSMS(from, getProgMemMsg(RESET_SUB_DONE_MSG));
+      } else if(msgIn == strstr(msgIn, "reset sub")) {  // Sender wants to cancel all subscriptions
+        if(!checkAdmin(from)) {
+          sendSMS(from, getProgMemMsg(ACCESS_DENIED_MSG));
+        } else {
+          resetSub();
+          sendSMS(from, getProgMemMsg(RESET_SUB_DONE_MSG));
+        }
       } else {
         // Don't send an SMS back, waste no more time.
-        print(0, 1, getProgMemMsg(NUMBER_SUBSCRIBED_MSG));
+        print(0, 1, getProgMemMsg(UNKNOWN_MSG));
       }
     }
   }
@@ -406,12 +409,55 @@ unsigned char getServiceFlagFromName(char *serviceName) {
   return serviceFlag;
 }
 
+// Search registered number for one given number.
+// If found, store it in foundOrFree and return true
+// If not, return false with the first available entry in foundOrFree
+// If no available, set foundOrFree to null
+
+boolean findRegisteredNumber(char *number, unsigned char *foundOrFree) {
+  unsigned char i, firstFree = MAX_PHONE_NUMBERS;
+  boolean result = false;
+  *foundOrFree = -1;
+  for(i=0 ; i<MAX_PHONE_NUMBERS; i++) {
+    if((config.registeredNumbers[i].number[0] == 0)) {
+      if(*foundOrFree == -1) {
+        // First available position to store a number
+        *foundOrFree = i;
+      }
+    } else if (0 == strncmp(config.registeredNumbers[i].number, number, PHONE_NUMBER_LENGTH)) {
+      // If number found, set its flag for the given service
+      *foundOrFree = i;
+      result = true;
+      break;
+    }
+  }
+  return result;
+}
+
 // Set the light threshold below which an alert will be sent
 void setLightThreshold(char *from, char *msgIn) {
   int threshold;
   sscanf(msgIn, "light %d", &threshold);
   config.lightThreshold = threshold;
   sendSMS(from, getProgMemMsg(LIGHT_THRESHOLD_SET_MSG));
+}
+
+// Set the minimum alert interval to not flood a number with alert SMS
+void setAlertInterval(char *from, char *msgIn) {
+  unsigned long interval;
+  unsigned char offset;
+  boolean found = false;
+  found = findRegisteredNumber(from, &offset);
+  if(found) {
+    sscanf(msgIn, "interval %ld", &interval);
+    Serial.println(interval);
+    config.registeredNumbers[offset].minAlertInterval = interval * 1000UL;   // Given in seconds, stored in milliseconds
+    Serial.println(getProgMemMsg(INTERVAL_SET_MSG));
+    displayConfig();
+    sendSMS(from, getProgMemMsg(INTERVAL_SET_MSG));
+  } else {
+    Serial.println(getProgMemMsg(UNKNOWN_NUMBER_MSG));
+  }
 }
 
 // Set the temperatures thresholds below or above which an alert will be sent
@@ -504,11 +550,16 @@ void unsubscribe(char *number, char *msgIn) {
 // Send SMS to all numbers subscribed to 'alerts'
 void sendAlert() {
   unsigned char i, flag;
+  unsigned long now = millis();  // We don't want to send too many SMS
   print(0, 1, "Alerts");
   for(i=0; i < MAX_PHONE_NUMBERS; i++) {
     // If phone number initialized AND subscribed to the alert service
     if((config.registeredNumbers[i].number[0] != 0) && (0 != (config.registeredNumbers[i].permissionFlags & FLAG_SERVICE_ALERT)) ) {
-      sendStatus(config.registeredNumbers[i].number);
+      // If enough time since last alert SMS was sent to this number, send a new one
+      if(checkElapsedDelay(now, config.registeredNumbers[i].lastAlertSmsTime, config.registeredNumbers[i].minAlertInterval)) {
+        sendStatus(config.registeredNumbers[i].number);
+        config.registeredNumbers[i].lastAlertSmsTime = now;
+      }
     }
   }
 }
@@ -627,25 +678,30 @@ void processIRCode(unsigned long code) {
       saveConfig("");
     break;
     case IR_LOG_CONFIG:
-      logConfig();
+      displayConfig();
     break;
     default:
       print(15, 1, "?");
   }
 }
+#endif
 
 // Log config to Serial console, on request from IR remote control
-void logConfig() {
-  char i;
+void displayConfig() {
+  unsigned char i;
   for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
-    Serial.print(i);
-    Serial.print(" ");
-    Serial.print(config.registeredNumbers[i].number);
-    Serial.print(" ");
-    Serial.println(config.registeredNumbers[i].permissionFlags);
+    if(config.registeredNumbers[i].number[0] != 0) {
+      Serial.print(i);
+      Serial.print(" ");
+      Serial.print(config.registeredNumbers[i].number);
+      Serial.print(" ");
+      Serial.print(config.registeredNumbers[i].permissionFlags);
+      Serial.print(" ");
+      Serial.println(config.registeredNumbers[i].minAlertInterval);
+    }
   }
 }
-#endif
+
 
 // Send SMS with all configuration. Only if requesting number has the 'admin' flag set in config
 void sendConfig(char *toNumber) {
@@ -656,6 +712,7 @@ void sendConfig(char *toNumber) {
     sendSMS(toNumber, getProgMemMsg(ACCESS_DENIED_MSG));
     return;
   }
+  displayConfig(); // Display through serial
   sms.beginSMS(toNumber);
   sprintf(message, getProgMemMsg(BUILD_MSG));
   sms.print(message);
@@ -678,7 +735,8 @@ void sendConfig(char *toNumber) {
   sms.print(space);
   for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
     if(config.registeredNumbers[i].number[0] != 0) {
-      sprintf(message, "%s %2X,", config.registeredNumbers[i].number, config.registeredNumbers[i].permissionFlags);
+      sprintf(message, "%s %2X %d", config.registeredNumbers[i].number,
+       config.registeredNumbers[i].permissionFlags, config.registeredNumbers[i].minAlertInterval / 1000);
       sms.print(message);
     }
   }
@@ -731,15 +789,16 @@ void resetSub() {
   // First one is main number, hardcoded, admin and subscribed to all services
   for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
     if(i == 0) {
-      config.registeredNumbers[i].permissionFlags = 0xFF;
+      config.registeredNumbers[i].permissionFlags = 0x8F;
       strcpy(config.registeredNumbers[i].number, REMOTE_NUMBER);
     } else {
       config.registeredNumbers[i].permissionFlags = 0;
       config.registeredNumbers[i].number[0] = 0;
     }
     config.registeredNumbers[i].lastAlertSmsTime = 0;
-    config.registeredNumbers[i].minAlertInterval = 60 * 30; // Every 30 minutes = 1800 seconds
+    config.registeredNumbers[i].minAlertInterval = 1800000; // Every 30 minutes = 1800 seconds
   }
+  displayConfig();
 }
 
 // Save the configuration to EEPROM
