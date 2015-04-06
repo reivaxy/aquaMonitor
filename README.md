@@ -23,14 +23,17 @@ When complete, will probably not fit on Arduino UNO but will require a Mega
   * 'unsub xxx' : unsubscribe to a service (alert, event)
   * 'interval xxx' : No more than 1 sms per xxx seconds
   * 'light XXX' : set the light threshold for alerts
+  * 'schedule hh:ss - hh:ss' : set the time span during which light should be above threshold
   * 'temp XXX YYY': set the low (XXX) and high (YYY) thresholds for temperature
   * 'temp adg XXX': set the temperature adjustment signed value
   * 'sub reset': resets all subscriptions (admin only)
   * 'config' : send back the config, for admin only
   * 'save': save the configuration to EEPROM
+* Subscribed phone numbers can set the minimum interval between 2 alerts to avoid flooding
+
 
 # TODOs
-* Setting for each registered number for a min time between 2 alert SMS
+* SMS to set the clock date and time (approx...)
 * RTC with onboard battery to handle lighting time schedule and not send SMS just because lights are off when they should be
 * water level detection to warn about evaporation compensation failure
 * water movement detection to warn about pumps failure (sensor remains to be found...) 

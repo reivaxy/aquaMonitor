@@ -54,8 +54,8 @@ const char savingConfigMsg[] PROGMEM = {"Saving config"};
 #define SAVING_CONFIG_MSG 24
 const char configSavedMsg[] PROGMEM = {"Config saved"};
 #define CONFIG_SAVED_MSG 25
-const char readingConfigMsg[] PROGMEM = {"Reading config"};
-#define READING_CONFIG_MSG 26
+const char newConfigMsg[] PROGMEM = {"New config"};
+#define NEW_CONFIG_MSG 26
 const char accessDeniedMsg[] PROGMEM = {"Access denied"};
 #define ACCESS_DENIED_MSG 27
 const char unknownMsg[] PROGMEM = {"Unknown message"};
@@ -64,7 +64,7 @@ const char buildMsg[] PROGMEM = {"aquaMonitor "__DATE__ " " __TIME__};
 #define BUILD_MSG 29
 const char resetSubDoneMsg[] PROGMEM = {"Reset sub. done"};
 #define RESET_SUB_DONE_MSG 30
-const char lightScheduleMsgFormat[] PROGMEM = {"Light schedule %d:%d - %d:%d"};
+const char lightScheduleMsgFormat[] PROGMEM = {"Light schedule %02d:%02d - %02d:%02d"};
 #define LIGHT_SCHEDULE_MSG_FORMAT 31
 const char temperatureAdjustmentSetMsg[] PROGMEM = {"Temp adjustment set"};
 #define TEMPERATURE_ADJUSTMENT_SET_MSG 32
@@ -76,6 +76,10 @@ const char intervalSetMsg[] PROGMEM = {"Interval set"};
 #define INTERVAL_SET_MSG 35
 const char unknownNumberMsg[] PROGMEM = {"Unknown number"};
 #define UNKNOWN_NUMBER_MSG 36
+const char currentDateFormatMsg[] PROGMEM = {"Date: %02d/%02d/%02d %02d:%02d"};
+#define CURRENT_DATE_FORMAT_MSG 37
+const char lightScheduleSetMsg[] PROGMEM = {"Light schedule set"};
+#define LIGHT_SCHEDULE_SET_MSG 38
 
 
 const char* const messages[] PROGMEM = {
@@ -84,8 +88,8 @@ const char* const messages[] PROGMEM = {
    temperatureMsgFormat, lightMsgFormat, checkSMSMsg, fromNumberMsg, discardSMSMsg,   // 10 TO 14
    sendingSMSMsg, SMSSentMsg, lightThresholdMsgFormat, temperatureAdjustmentMsgFormat, temperatureThresholdMsgFormat,  // 15 TO 19
    numberSubscribedMsg, numberNotSubscribedMsg, numberUnsubscribedMsg, numberNotUnsubscribedMsg, savingConfigMsg,      // 20 TO 24
-   configSavedMsg, readingConfigMsg, accessDeniedMsg, unknownMsg, buildMsg,    // 25 TO 29
+   configSavedMsg, newConfigMsg, accessDeniedMsg, unknownMsg, buildMsg,    // 25 TO 29
    resetSubDoneMsg, lightScheduleMsgFormat, temperatureAdjustmentSetMsg, temperatureThresholdsSetMsg, lightThresholdSetMsg,
-   intervalSetMsg, unknownNumberMsg
+   intervalSetMsg, unknownNumberMsg, currentDateFormatMsg, lightScheduleSetMsg
 };
 

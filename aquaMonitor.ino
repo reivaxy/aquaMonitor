@@ -131,11 +131,12 @@ unsigned long lastLightCheck = millis() - LIGHT_CHECK_PERIOD;
 unsigned long lastSmsCheck = 0;
 
 // Max size of a received SMS
-#define MAX_SMS_LENGTH 20
+#define MAX_SMS_LENGTH 30
 boolean gsmEnabled = !false;
 
 boolean statusOK = true;
 
+// TODO: offer choice with DS1302
 DS1307 clock; // The RTC handle to get date and time
 
 // System initialization
@@ -148,14 +149,17 @@ void setup(void) {
 
   // Initialise RTC
   clock.begin();
- 
+
 #if WITH_LCD_SUPPORT
   lcd.begin(LCD_WIDTH, LCD_HEIGHT,1);
   lcd.clear();
 #endif
 
   print(0, 0, getProgMemMsg(INIT_AQUAMON_MSG));
+  Serial.println(getProgMemMsg(BUILD_MSG));
+
   readConfig();
+  displayConfig();
 
 #if WITH_IR_SUPPORT
   print(0, 1, getProgMemMsg(INIT_IR_MSG));
@@ -191,7 +195,7 @@ void setup(void) {
     }
   }
   delay(500);
-  // Not working... TODO investigate
+  // Not working... TODO investigate. Delay ?
   // sendSMS(config.registeredNumbers[0].number, getProgMemMsg(BUILD_MSG));
 #if WITH_LCD_SUPPORT
   lcd.clear();
@@ -312,23 +316,41 @@ boolean checkTemperature() {
   return temperatureOK;
 }
 
-// Return true if light is above threshold
+// Return true if light is below threshold within scheduled time frame
 boolean checkLight() {
   long lightLevel = 0;
   boolean lightOK = true;
   lightLevel = analogRead(LIGHT_PIN);
   sprintf(lightMsg, getProgMemMsg(LIGHT_MSG_FORMAT), lightLevel);
   print(0, 1, lightMsg);
-  if(lightLevel < config.lightThreshold) {
+  // If level less than threshold during light on period => not ok
+  if((lightLevel < config.lightThreshold) && inLightSchedule()) {
     lightOK = false;
   }
   return(lightOK);
 }
 
+// check if now is within the schedule during which light should be on
+boolean inLightSchedule() {
+  boolean in = false;
+  unsigned long onMin;
+  unsigned long offMin;
+  unsigned long nowMin;
+
+  clock.getTime();
+  onMin = config.lightOnHour * 60 + config.lightOnMinute;
+  offMin = config.lightOffHour * 60 + config.lightOffMinute;
+  nowMin = clock.hour * 60 + clock.minute;
+  if((nowMin >= onMin) && (nowMin <= offMin)) {
+    in = true;
+  }
+  return(in);
+}
+
 // Check for incoming SMS, and processes it if any
 void checkSMS() {
   char from[PHONE_NUMBER_LENGTH + 1];
-  char msgIn[20];
+  char msgIn[MAX_SMS_LENGTH + 1];
   char c,i;
   int cptr = 0;
   if(!gsmEnabled) return;
@@ -370,6 +392,8 @@ void checkSMS() {
         setTemperatureThresholds(from, msgIn);
       } else if(msgIn == strstr(msgIn, "light ")) {  // Sender wants to set light threshold
         setLightThreshold(from, msgIn);
+      } else  if(msgIn == strstr(msgIn, "schedule ")) {  // Sender wants to set light schedule
+        setLightSchedule(from, msgIn);
       } else if(msgIn == strstr(msgIn, "save")) {    // Sender wants config to be saved to EEPROM
         saveConfig(from);
       } else if(msgIn == strstr(msgIn, "status")) {  // Sender wants to receive current measurements
@@ -440,6 +464,17 @@ void setLightThreshold(char *from, char *msgIn) {
   sscanf(msgIn, "light %d", &threshold);
   config.lightThreshold = threshold;
   sendSMS(from, getProgMemMsg(LIGHT_THRESHOLD_SET_MSG));
+}
+
+// Set the light threshold below which an alert will be sent
+void setLightSchedule(char *from, char *msgIn) {
+  unsigned int hourOn, minuteOn, hourOff, minuteOff;
+  sscanf(msgIn, "schedule %d:%d - %d:%d", &hourOn, &minuteOn, &hourOff, &minuteOff);
+  config.lightOnHour = (byte)hourOn;
+  config.lightOnMinute = (byte)minuteOn;
+  config.lightOffHour = (byte)hourOff;
+  config.lightOffMinute = (byte)minuteOff;
+  sendSMS(from, getProgMemMsg(LIGHT_SCHEDULE_SET_MSG));
 }
 
 // Set the minimum alert interval to not flood a number with alert SMS
@@ -686,9 +721,29 @@ void processIRCode(unsigned long code) {
 }
 #endif
 
-// Log config to Serial console, on request from IR remote control
+// Log config to Serial console
 void displayConfig() {
   unsigned char i;
+  char message[100];
+  clock.getTime();
+  sprintf(message, getProgMemMsg(CURRENT_DATE_FORMAT_MSG),
+     clock.year+2000, clock.month, clock.dayOfMonth,
+     clock.hour, clock.minute);
+  Serial.println(message);
+
+  sprintf(message, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
+  Serial.println(message);
+
+  sprintf(message, getProgMemMsg(LIGHT_SCHEDULE_MSG_FORMAT),
+                config.lightOnHour, config.lightOnMinute,
+                config.lightOffHour, config.lightOffMinute);
+  Serial.println(message);
+
+  sprintf(message, getProgMemMsg(TEMPERATURE_THRESHOLD_MSG_FORMAT), config.temperatureLowThreshold, config.temperatureHighThreshold);
+  Serial.println(message);
+  sprintf(message, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
+  Serial.println(message);
+
   for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
     if(config.registeredNumbers[i].number[0] != 0) {
       Serial.print(i);
@@ -713,10 +768,19 @@ void sendConfig(char *toNumber) {
     return;
   }
   displayConfig(); // Display through serial
+
   sms.beginSMS(toNumber);
   sprintf(message, getProgMemMsg(BUILD_MSG));
   sms.print(message);
   sms.print(space);
+
+  clock.getTime();
+  sprintf(message, getProgMemMsg(CURRENT_DATE_FORMAT_MSG),
+     clock.year+2000, clock.month, clock.dayOfMonth,
+     clock.hour, clock.minute);
+  sms.print(message);
+  sms.print(space);
+
   sprintf(message, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
   sms.print(message);
   sms.print(space);
@@ -763,9 +827,10 @@ boolean checkAdmin(char *number) {
 // reset config to default values, and save it to EEPROM for next time
 void readConfig() {
   unsigned char i;
-  print(0, 1, getProgMemMsg(READING_CONFIG_MSG));
   EEPROM.readBlock(CONFIG_ADDRESS, config);
   if(config.version != CONFIG_VERSION) {
+    print(0, 1, getProgMemMsg(NEW_CONFIG_MSG));
+
     config.version = CONFIG_VERSION;
     config.temperatureAdjustment = 0;
     config.temperatureHighThreshold = 2700;
