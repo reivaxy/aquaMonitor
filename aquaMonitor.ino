@@ -27,20 +27,20 @@ __asm volatile ("nop");
 #include "./progmemStrings.h"
 
 #define PHONE_NUMBER_LENGTH 15
-#define MAX_PHONE_NUMBERS 4
-#define CONFIG_ADDRESS 0
+#define MAX_PHONE_NUMBERS 2
+
+#define DEFAULT_MIN_ALERT_INTERVAL 1800000 // Half an hour
+struct phoneConfig {
+  unsigned char permissionFlags;
+  char number[PHONE_NUMBER_LENGTH + 1];
+  unsigned long lastAlertSmsTime = 0;  // When was last time (millis()) an alert SMS sent to that number
+  unsigned long minAlertInterval = DEFAULT_MIN_ALERT_INTERVAL;  // minimum interval in milliseconds between 2 alert SMS to avoir flooding
+};
 
 // Change this version to reset the EEPROM saved configuration
 // when the structure changes
 #define CONFIG_VERSION 5
-
-struct phoneConfig {
-  unsigned char permissionFlags;
-  char number[PHONE_NUMBER_LENGTH + 1];
-  unsigned long lastAlertSmsTime;  // When was last time (millis()) an alert SMS sent to that number
-  unsigned long minAlertInterval;  // minimum interval in milliseconds between 2 alert SMS to avoir flooding
-};
-
+#define CONFIG_ADDRESS 0
 struct eepromConfig {
   unsigned int version;          // Version for this config structure and default values. Always keep as first structure member 
   int temperatureAdjustment;     // Signed offset to add to temperature measure to adjust it
@@ -103,8 +103,6 @@ LiquidCrystal lcd(7, 8, 9, 10, 11 , 12);
 #define LCD_HEIGHT 2
 #endif
 
-#define MSG_MAX_LENGTH 14
-
 #define LIGHT_PIN 0
 #define TEMPERATURE_PIN 6
 
@@ -115,7 +113,7 @@ byte addr[MAX_DS1820_SENSORS][8];
 
 // Okay these globals are pretty bad and still the cause of a few bugs, but the
 // small amount of variable space left me with little choice.
-#define PROGMEM_MSG_MAX_SIZE 60
+#define PROGMEM_MSG_MAX_SIZE 40
 char progMemMsg[PROGMEM_MSG_MAX_SIZE + 1];
 char temperatureMsg[20];
 char lightMsg[20];
@@ -168,8 +166,7 @@ void setup(void) {
 #endif
 
   print(0, 1, getProgMemMsg(TEMP_INIT_MSG));
-  if (!ds.search(addr[0]))
-  {
+  if (!ds.search(addr[0])) {
     print(0, 1, getProgMemMsg(ADDR_ERR_MSG));
     ds.reset_search();
     delay(250);
@@ -183,8 +180,7 @@ void setup(void) {
 
   // Start GSM shield
   print(0, 0, getProgMemMsg(INIT_GSM_MSG));
-  while(notConnected)
-  {
+  while(notConnected) {
     print(0, 1, getProgMemMsg(CONNECTING_GSM_MSG));
     if(gsmAccess.begin(PINNUMBER)==GSM_READY) {
       print(0, 1, getProgMemMsg(CONNECTED_GSM_MSG));
@@ -434,11 +430,11 @@ unsigned char getServiceFlagFromName(char *serviceName) {
 }
 
 // Search registered number for one given number.
-// If found, store it in foundOrFree and return true
-// If not, return false with the first available entry in foundOrFree
-// If no available, set foundOrFree to null
+// If found, store its offset in foundOrFree and return true
+// If not, return false with the first available entry offset in foundOrFree
+// If no available, set foundOrFree to -1
 
-boolean findRegisteredNumber(char *number, unsigned char *foundOrFree) {
+boolean findRegisteredNumber(char *number, char *foundOrFree) {
   unsigned char i, firstFree = MAX_PHONE_NUMBERS;
   boolean result = false;
   *foundOrFree = -1;
@@ -480,7 +476,7 @@ void setLightSchedule(char *from, char *msgIn) {
 // Set the minimum alert interval to not flood a number with alert SMS
 void setAlertInterval(char *from, char *msgIn) {
   unsigned long interval;
-  unsigned char offset;
+  char offset;
   boolean found = false;
   found = findRegisteredNumber(from, &offset);
   if(found) {
@@ -520,7 +516,7 @@ void subscribe(char *number, char *msgIn) {
   char msgBuf[30];
   char serviceName[10];
   boolean found = false;
-  unsigned char foundOrFree;
+  char foundOrFree;
 
   sscanf(msgIn, "sub %s", serviceName);
 
@@ -534,6 +530,8 @@ void subscribe(char *number, char *msgIn) {
     if(foundOrFree != -1) {
       strncpy(config.registeredNumbers[foundOrFree].number, number, PHONE_NUMBER_LENGTH);
       config.registeredNumbers[foundOrFree].permissionFlags = serviceFlag;
+      config.registeredNumbers[foundOrFree].lastAlertSmsTime = 0;
+      config.registeredNumbers[foundOrFree].minAlertInterval = DEFAULT_MIN_ALERT_INTERVAL;
       done = true;
     }
   }
@@ -554,7 +552,7 @@ void unsubscribe(char *number, char *msgIn) {
   char msgBuf[30];
   char serviceName[10];
   boolean found = false;
-  unsigned char foundOrFree;
+  char foundOrFree;
 
   sscanf(msgIn, "unsub %s", serviceName);
   serviceFlag = getServiceFlagFromName(serviceName);
@@ -717,7 +715,7 @@ void processIRCode(unsigned long code) {
 // Log config to Serial console
 void displayConfig() {
   unsigned char i;
-  char message[100];
+  char message[50];
   clock.getTime();
   sprintf(message, getProgMemMsg(CURRENT_DATE_FORMAT_MSG),
      clock.year+2000, clock.month, clock.dayOfMonth,
@@ -789,7 +787,10 @@ void sendConfig(char *toNumber) {
   sms.print(space);
   sprintf(message, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
   sms.print(message);
-  sms.print(space);
+  // Message needs to be less than 160c
+  sms.endSMS();
+  delay(3000); // If no delay, freeze... Experimental value... crap ...
+  sms.beginSMS(toNumber);
   for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
     if(config.registeredNumbers[i].number[0] != 0) {
       sprintf(message, "%s %2X %d", config.registeredNumbers[i].number,
