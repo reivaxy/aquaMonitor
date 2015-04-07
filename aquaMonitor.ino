@@ -517,31 +517,27 @@ void subscribe(char *number, char *msgIn) {
   unsigned char serviceFlag;
   unsigned char i, firstFree = MAX_PHONE_NUMBERS;
   boolean done = false;
-  char msgBuf[70];
+  char msgBuf[30];
   char serviceName[10];
+  boolean found = false;
+  unsigned char foundOrFree;
 
   sscanf(msgIn, "sub %s", serviceName);
 
   serviceFlag = getServiceFlagFromName(serviceName);
   // Check if number is already in the config
-  for(i=0 ; i<MAX_PHONE_NUMBERS; i++) {
-    // If current number in config is not initialized, keep its offset
-    if((config.registeredNumbers[i].number[0] == 0)){
-      if(firstFree == MAX_PHONE_NUMBERS) {
-        firstFree = i;
-      }
-    } else if (0 == strncmp(config.registeredNumbers[i].number, number, PHONE_NUMBER_LENGTH)) {
-      // If number found, set its flag for the given service
-      config.registeredNumbers[i].permissionFlags |= serviceFlag;
-      done = true;
-    }
-    // If number was not yet registered but a free spot is available, register it
-    if(!done && (firstFree < MAX_PHONE_NUMBERS)) {
-      strncpy(config.registeredNumbers[firstFree].number, number, PHONE_NUMBER_LENGTH);
-      config.registeredNumbers[firstFree].permissionFlags = serviceFlag;
+  found = findRegisteredNumber(number, &foundOrFree);
+  if(found) {
+    config.registeredNumbers[foundOrFree].permissionFlags |= serviceFlag;
+    done = true;
+  } else {
+    if(foundOrFree != -1) {
+      strncpy(config.registeredNumbers[foundOrFree].number, number, PHONE_NUMBER_LENGTH);
+      config.registeredNumbers[foundOrFree].permissionFlags = serviceFlag;
       done = true;
     }
   }
+
   if(done) {
     sprintf(msgBuf, getProgMemMsg(NUMBER_SUBSCRIBED_MSG), serviceName);
     sendSMS(number, msgBuf);
@@ -555,31 +551,28 @@ void subscribe(char *number, char *msgIn) {
 void unsubscribe(char *number, char *msgIn) {
   unsigned char serviceFlag;
   unsigned char i;
-  boolean done = false;
-  char msgBuf[70];
+  char msgBuf[30];
   char serviceName[10];
+  boolean found = false;
+  unsigned char foundOrFree;
 
   sscanf(msgIn, "unsub %s", serviceName);
   serviceFlag = getServiceFlagFromName(serviceName);
   // look for number
-  for(i=0 ; i<MAX_PHONE_NUMBERS; i++) {
-    if (0 == strncmp(config.registeredNumbers[i].number, number, PHONE_NUMBER_LENGTH)) {
-      // If number found, cancel it
-      config.registeredNumbers[i].permissionFlags &= (~serviceFlag);
-
-      if(0 == config.registeredNumbers[i].permissionFlags) {
-        config.registeredNumbers[i].number[0] = 0;
-      }
-      done = true;
+  found = findRegisteredNumber(number, &foundOrFree);
+  if(found) {
+    config.registeredNumbers[foundOrFree].permissionFlags &= (~serviceFlag);
+    // If no more flags, remove number
+    if(0 == config.registeredNumbers[foundOrFree].permissionFlags) {
+      config.registeredNumbers[foundOrFree].number[0] = 0;
     }
-  }
-  if(done) {
     sprintf(msgBuf, getProgMemMsg(NUMBER_UNSUBSCRIBED_MSG), serviceName);
     sendSMS(number, msgBuf);
   } else {
     sprintf(msgBuf, getProgMemMsg(NUMBER_NOT_UNSUBSCRIBED_MSG), serviceName);
     sendSMS(number, msgBuf);
   }
+
 }
 
 // Send SMS to all numbers subscribed to 'alerts'
