@@ -57,8 +57,7 @@ struct eepromConfig {
 // Flags for services subscriptions and permissions
 #define FLAG_SERVICE_ALERT   0x01
 #define FLAG_SERVICE_EVENT   0x02
-#define FLAG_SERVICE_SUB     0x04
-#define FLAG_SERVICE_UNSUB   0x08
+
 #define FLAG_ADMIN           0x80
 
 #if WITH_IR_SUPPORT
@@ -246,12 +245,8 @@ void loop(void) {
 boolean checkElapsedDelay(unsigned long now, unsigned long lastTime, unsigned long delay) {
   unsigned long elapsed = now - lastTime;
   boolean result = false;
-
-  // millis() overflows unsigned long after about 50 days => 0
-  if(elapsed < 0) {
-    elapsed += 0xFFFFFFFFul;
-  }
-
+  // millis() overflows unsigned long after about 50 days => 0  but since unsigned,
+  // no problem !
   if(elapsed >= delay) {
     result = true;
   }
@@ -382,6 +377,8 @@ void checkSMS() {
         setAlertInterval(from, msgIn);
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_TEMP_ADJ))) {       // Sender wants to set temperature adjustment
         setTemperatureAdjustment(from, msgIn);
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SUBS))) {   // Sender wants to receive subscription information
+        sendSubs(from);
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_CONFIG))) {   // Sender wants to receive configuration
         sendConfig(from);
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_TEMP))) {   // Sender wants to set temperture thresholds
@@ -421,11 +418,8 @@ unsigned char getServiceFlagFromName(char *serviceName) {
     serviceFlag = FLAG_SERVICE_ALERT;
   } else if(0 == strncmp(serviceName, "event", 5)) {
     serviceFlag = FLAG_SERVICE_EVENT;
-  } else if(0 == strncmp(serviceName, "sub", 3)) {
-    serviceFlag = FLAG_SERVICE_SUB;
-  } else if(0 == strncmp(serviceName, "unsub", 5)) {
-    serviceFlag = FLAG_SERVICE_UNSUB;
   }
+  // More flags ?
   return serviceFlag;
 }
 
@@ -754,8 +748,48 @@ void displayConfig() {
 
 // Send SMS with all configuration. Only if requesting number has the 'admin' flag set in config
 void sendConfig(char *toNumber) {
+  char message[40];
+  char space[] = ", ";
+
+  displayConfig(); // Display through serial
+  if(gsmEnabled) {
+
+    sms.beginSMS(toNumber);
+    sprintf(message, getProgMemMsg(BUILD_MSG));
+    sms.print(message);
+    sms.print(space);
+
+    clock.getTime();
+    sprintf(message, getProgMemMsg(CURRENT_DATE_FORMAT_MSG),
+       clock.year+2000, clock.month, clock.dayOfMonth,
+       clock.hour, clock.minute);
+    sms.print(message);
+    sms.print(space);
+
+    sprintf(message, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
+    sms.print(message);
+    sms.print(space);
+
+    sprintf(message, getProgMemMsg(LIGHT_SCHEDULE_MSG_FORMAT),
+                  config.lightOnHour, config.lightOnMinute,
+                  config.lightOffHour, config.lightOffMinute);
+    sms.print(message);
+    sms.print(space);
+
+    sprintf(message, getProgMemMsg(TEMPERATURE_THRESHOLD_MSG_FORMAT), config.temperatureLowThreshold, config.temperatureHighThreshold);
+    sms.print(message);
+    sms.print(space);
+    sprintf(message, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
+    sms.print(message);
+    // Message needs to be less than 160c
+    sms.endSMS();
+  }
+}
+
+// Send a message listing all subscriptions
+void sendSubs(char *toNumber) {
   char i;
-  char message[100];
+  char message[30];
   char space[] = ", ";
   if(!checkAdmin(toNumber)) {
     sendSMS(toNumber, getProgMemMsg(ACCESS_DENIED_MSG));
@@ -763,45 +797,17 @@ void sendConfig(char *toNumber) {
   }
   displayConfig(); // Display through serial
 
-  sms.beginSMS(toNumber);
-  sprintf(message, getProgMemMsg(BUILD_MSG));
-  sms.print(message);
-  sms.print(space);
-
-  clock.getTime();
-  sprintf(message, getProgMemMsg(CURRENT_DATE_FORMAT_MSG),
-     clock.year+2000, clock.month, clock.dayOfMonth,
-     clock.hour, clock.minute);
-  sms.print(message);
-  sms.print(space);
-
-  sprintf(message, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
-  sms.print(message);
-  sms.print(space);
-
-  sprintf(message, getProgMemMsg(LIGHT_SCHEDULE_MSG_FORMAT),
-                config.lightOnHour, config.lightOnMinute,
-                config.lightOffHour, config.lightOffMinute);
-  sms.print(message);
-  sms.print(space);
-
-  sprintf(message, getProgMemMsg(TEMPERATURE_THRESHOLD_MSG_FORMAT), config.temperatureLowThreshold, config.temperatureHighThreshold);
-  sms.print(message);
-  sms.print(space);
-  sprintf(message, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
-  sms.print(message);
-  // Message needs to be less than 160c
-  sms.endSMS();
-  delay(3000); // If no delay, freeze... Experimental value... crap ...
-  sms.beginSMS(toNumber);
-  for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
-    if(config.registeredNumbers[i].number[0] != 0) {
-      sprintf(message, "%s %2X %d", config.registeredNumbers[i].number,
-       config.registeredNumbers[i].permissionFlags, config.registeredNumbers[i].minAlertInterval / 1000);
-      sms.print(message);
+  if(gsmEnabled) {
+    sms.beginSMS(toNumber);
+    for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
+      if(config.registeredNumbers[i].number[0] != 0) {
+        sprintf(message, "%s %2X %d", config.registeredNumbers[i].number,
+         config.registeredNumbers[i].permissionFlags, config.registeredNumbers[i].minAlertInterval / 1000);
+        sms.print(message);
+      }
     }
+    sms.endSMS();
   }
-  sms.endSMS();
 }
 
 // Return true/false depending on phone number having the admin flag

@@ -103,20 +103,22 @@ const char inSmsSub[] PROGMEM = {"sub "};
 const char inSmsUnsub[] PROGMEM = {"unsub "};
 #define IN_SMS_RESET_SUB 49
 const char inSmsResetSub[] PROGMEM = {"reset sub"};
+#define IN_SMS_SUBS 50
+const char inSmsSubs[] PROGMEM = {"subs"};
 
-#define IN_SMS_INTERVAL_FORMAT 50
+#define IN_SMS_INTERVAL_FORMAT 51
 const char inSmsIntervalFormat[] PROGMEM = {"interval %d"};
-#define IN_SMS_TEMP_ADJ_FORMAT 51
+#define IN_SMS_TEMP_ADJ_FORMAT 52
 const char inSmsTempAdjFormat[] PROGMEM = {"temp adj %d"};
-#define IN_SMS_TEMP_FORMAT 52
+#define IN_SMS_TEMP_FORMAT 53
 const char inSmsTempFormat[] PROGMEM = {"temp %d %d"};
-#define IN_SMS_LIGHT_FORMAT 53
+#define IN_SMS_LIGHT_FORMAT 54
 const char inSmsLightFormat[] PROGMEM = {"light %d"};
-#define IN_SMS_SCHEDULE_FORMAT 54
+#define IN_SMS_SCHEDULE_FORMAT 55
 const char inSmsScheduleFormat[] PROGMEM = {"schedule %d:%d - %d:%d"};
-#define IN_SMS_SUB_FORMAT 55
+#define IN_SMS_SUB_FORMAT 56
 const char inSmsSubFormat[] PROGMEM = {"sub %s"};
-#define IN_SMS_UNSUB_FORMAT 56
+#define IN_SMS_UNSUB_FORMAT 57
 const char inSmsUnsubFormat[] PROGMEM = {"unsub %s"};
 
 const char* const messages[] PROGMEM = {
@@ -131,7 +133,7 @@ const char* const messages[] PROGMEM = {
 
   inSmsInterval, inSmsTempAdj, inSmsConfig, inSmsTemp, inSmsLight,
   inSmsSchedule, inSmsSave, inSmsStatus, inSmsSub, inSmsUnsub,
-  inSmsResetSub,
+  inSmsResetSub, inSmsSubs,
 
   inSmsIntervalFormat, inSmsTempAdjFormat, inSmsTempFormat, inSmsLightFormat, inSmsScheduleFormat,
   inSmsSubFormat, inSmsUnsubFormat
