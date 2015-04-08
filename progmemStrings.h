@@ -81,15 +81,62 @@ const char currentDateFormatMsg[] PROGMEM = {"Date: %02d/%02d/%02d %02d:%02d"};
 const char lightScheduleSetMsg[] PROGMEM = {"Light schedule set"};
 #define LIGHT_SCHEDULE_SET_MSG 38
 
+#define IN_SMS_INTERVAL 39
+const char inSmsInterval[] PROGMEM = {"interval "};
+#define IN_SMS_TEMP_ADJ 40
+const char inSmsTempAdj[] PROGMEM = {"temp adj "};
+#define IN_SMS_CONFIG 41
+const char inSmsConfig[] PROGMEM = {"config"};
+#define IN_SMS_TEMP 42
+const char inSmsTemp[] PROGMEM = {"temp "};
+#define IN_SMS_LIGHT 43
+const char inSmsLight[] PROGMEM = {"light "};
+#define IN_SMS_SCHEDULE 44
+const char inSmsSchedule[] PROGMEM = {"schedule "};
+#define IN_SMS_SAVE 45
+const char inSmsSave[] PROGMEM = {"save"};
+#define IN_SMS_STATUS 46
+const char inSmsStatus[] PROGMEM = {"status"};
+#define IN_SMS_SUB 47
+const char inSmsSub[] PROGMEM = {"sub "};
+#define IN_SMS_UNSUB 48
+const char inSmsUnsub[] PROGMEM = {"unsub "};
+#define IN_SMS_RESET_SUB 49
+const char inSmsResetSub[] PROGMEM = {"reset sub"};
+
+#define IN_SMS_INTERVAL_FORMAT 50
+const char inSmsIntervalFormat[] PROGMEM = {"interval %d"};
+#define IN_SMS_TEMP_ADJ_FORMAT 51
+const char inSmsTempAdjFormat[] PROGMEM = {"temp adj %d"};
+#define IN_SMS_TEMP_FORMAT 52
+const char inSmsTempFormat[] PROGMEM = {"temp %d %d"};
+#define IN_SMS_LIGHT_FORMAT 53
+const char inSmsLightFormat[] PROGMEM = {"light %d"};
+#define IN_SMS_SCHEDULE_FORMAT 54
+const char inSmsScheduleFormat[] PROGMEM = {"schedule %d:%d - %d:%d"};
+#define IN_SMS_SUB_FORMAT 55
+const char inSmsSubFormat[] PROGMEM = {"sub %s"};
+#define IN_SMS_UNSUB_FORMAT 56
+const char inSmsUnsubFormat[] PROGMEM = {"unsub %s"};
 
 const char* const messages[] PROGMEM = {
-   initAquamonMsg, initIRMsg, tempInitMsg, addrErrMsg, initGSMMsg,   // 0 to 4
-   connectingGSMMsg, connectedGSMMsg, notConnectedGSMMsg, crcNotValidMsg, familyMsg,  // 5 to 9
-   temperatureMsgFormat, lightMsgFormat, checkSMSMsg, fromNumberMsg, discardSMSMsg,   // 10 TO 14
-   sendingSMSMsg, SMSSentMsg, lightThresholdMsgFormat, temperatureAdjustmentMsgFormat, temperatureThresholdMsgFormat,  // 15 TO 19
-   numberSubscribedMsg, numberNotSubscribedMsg, numberUnsubscribedMsg, numberNotUnsubscribedMsg, savingConfigMsg,      // 20 TO 24
-   configSavedMsg, newConfigMsg, accessDeniedMsg, unknownMsg, buildMsg,    // 25 TO 29
-   resetSubDoneMsg, lightScheduleMsgFormat, temperatureAdjustmentSetMsg, temperatureThresholdsSetMsg, lightThresholdSetMsg,
-   intervalSetMsg, unknownNumberMsg, currentDateFormatMsg, lightScheduleSetMsg
+  initAquamonMsg, initIRMsg, tempInitMsg, addrErrMsg, initGSMMsg,   // 0 to 4
+  connectingGSMMsg, connectedGSMMsg, notConnectedGSMMsg, crcNotValidMsg, familyMsg,  // 5 to 9
+  temperatureMsgFormat, lightMsgFormat, checkSMSMsg, fromNumberMsg, discardSMSMsg,   // 10 TO 14
+  sendingSMSMsg, SMSSentMsg, lightThresholdMsgFormat, temperatureAdjustmentMsgFormat, temperatureThresholdMsgFormat,  // 15 TO 19
+  numberSubscribedMsg, numberNotSubscribedMsg, numberUnsubscribedMsg, numberNotUnsubscribedMsg, savingConfigMsg,      // 20 TO 24
+  configSavedMsg, newConfigMsg, accessDeniedMsg, unknownMsg, buildMsg,    // 25 TO 29
+  resetSubDoneMsg, lightScheduleMsgFormat, temperatureAdjustmentSetMsg, temperatureThresholdsSetMsg, lightThresholdSetMsg,
+  intervalSetMsg, unknownNumberMsg, currentDateFormatMsg, lightScheduleSetMsg,
+
+  inSmsInterval, inSmsTempAdj, inSmsConfig, inSmsTemp, inSmsLight,
+  inSmsSchedule, inSmsSave, inSmsStatus, inSmsSub, inSmsUnsub,
+  inSmsResetSub,
+
+  inSmsIntervalFormat, inSmsTempAdjFormat, inSmsTempFormat, inSmsLightFormat, inSmsScheduleFormat,
+  inSmsSubFormat, inSmsUnsubFormat
+
+
+
 };
 

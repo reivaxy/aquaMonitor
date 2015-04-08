@@ -376,29 +376,29 @@ void checkSMS() {
       msgIn[cptr] = 0;
       // Delete message from modem memory
       sms.flush();
-      
+
       Serial.println(msgIn);
-      if(msgIn == strstr(msgIn, "interval ")) {   // Sender wants to set his alert minimum interval (seconds)
+      if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_INTERVAL))) {   // Sender wants to set his alert minimum interval (seconds)
         setAlertInterval(from, msgIn);
-      } else if(msgIn == strstr(msgIn, "temp adj ")) {       // Sender wants to set temperature adjustment
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_TEMP_ADJ))) {       // Sender wants to set temperature adjustment
         setTemperatureAdjustment(from, msgIn);
-      } else if(msgIn == strstr(msgIn, "config")) {   // Sender wants to receive configuration
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_CONFIG))) {   // Sender wants to receive configuration
         sendConfig(from);
-      } else if(msgIn == strstr(msgIn, "temp ")) {   // Sender wants to set temperture thresholds
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_TEMP))) {   // Sender wants to set temperture thresholds
         setTemperatureThresholds(from, msgIn);
-      } else if(msgIn == strstr(msgIn, "light ")) {  // Sender wants to set light threshold
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_LIGHT))) {  // Sender wants to set light threshold
         setLightThreshold(from, msgIn);
-      } else  if(msgIn == strstr(msgIn, "schedule ")) {  // Sender wants to set light schedule
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SCHEDULE))) {  // Sender wants to set light schedule
         setLightSchedule(from, msgIn);
-      } else if(msgIn == strstr(msgIn, "save")) {    // Sender wants config to be saved to EEPROM
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SAVE))) {    // Sender wants config to be saved to EEPROM
         saveConfig(from);
-      } else if(msgIn == strstr(msgIn, "status")) {  // Sender wants to receive current measurements
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_STATUS))) {  // Sender wants to receive current measurements
         sendStatus(from);
-      } else if(msgIn == strstr(msgIn, "sub ")) {    // Sender wants to subscribe to given service
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SUB))) {    // Sender wants to subscribe to given service
         subscribe(from, msgIn);
-      } else if(msgIn == strstr(msgIn, "unsub ")) {   // Sender wants to unsuscrive to give service
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_UNSUB))) {   // Sender wants to unsuscrive to give service
         unsubscribe(from, msgIn);
-      } else if(msgIn == strstr(msgIn, "reset sub")) {  // Sender wants to cancel all subscriptions
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_RESET_SUB))) {  // Sender wants to cancel all subscriptions
         if(!checkAdmin(from)) {
           sendSMS(from, getProgMemMsg(ACCESS_DENIED_MSG));
         } else {
@@ -457,7 +457,7 @@ boolean findRegisteredNumber(char *number, char *foundOrFree) {
 // Set the light threshold below which an alert will be sent
 void setLightThreshold(char *from, char *msgIn) {
   int threshold;
-  sscanf(msgIn, "light %d", &threshold);
+  sscanf(msgIn, getProgMemMsg(IN_SMS_LIGHT_FORMAT), &threshold);
   config.lightThreshold = threshold;
   sendSMS(from, getProgMemMsg(LIGHT_THRESHOLD_SET_MSG));
 }
@@ -465,7 +465,7 @@ void setLightThreshold(char *from, char *msgIn) {
 // Set the light threshold below which an alert will be sent
 void setLightSchedule(char *from, char *msgIn) {
   unsigned int hourOn, minuteOn, hourOff, minuteOff;
-  sscanf(msgIn, "schedule %d:%d - %d:%d", &hourOn, &minuteOn, &hourOff, &minuteOff);
+  sscanf(msgIn, getProgMemMsg(IN_SMS_SCHEDULE_FORMAT), &hourOn, &minuteOn, &hourOff, &minuteOff);
   config.lightOnHour = (byte)hourOn;
   config.lightOnMinute = (byte)minuteOn;
   config.lightOffHour = (byte)hourOff;
@@ -480,7 +480,7 @@ void setAlertInterval(char *from, char *msgIn) {
   boolean found = false;
   found = findRegisteredNumber(from, &offset);
   if(found) {
-    sscanf(msgIn, "interval %ld", &interval);
+    sscanf(msgIn, getProgMemMsg(IN_SMS_INTERVAL_FORMAT), &interval);
     Serial.println(interval);
     config.registeredNumbers[offset].minAlertInterval = interval * 1000UL;   // Given in seconds, stored in milliseconds
     Serial.println(getProgMemMsg(INTERVAL_SET_MSG));
@@ -494,7 +494,7 @@ void setAlertInterval(char *from, char *msgIn) {
 // Set the temperatures thresholds below or above which an alert will be sent
 void setTemperatureThresholds(char *from, char *msgIn) {
   int low, high;
-  sscanf(msgIn, "temp %d %d", &low, &high);
+  sscanf(msgIn, getProgMemMsg(IN_SMS_TEMP_FORMAT), &low, &high);
   config.temperatureHighThreshold = high;
   config.temperatureLowThreshold = low;
   sendSMS(from, getProgMemMsg(TEMPERATURE_THRESHOLDS_SET_MSG));
@@ -503,7 +503,7 @@ void setTemperatureThresholds(char *from, char *msgIn) {
 // Set the temperature adjustment parameter
 void setTemperatureAdjustment(char *from, char *msgIn) {
   int adj;
-  sscanf(msgIn, "temp adj %d", &adj);
+  sscanf(msgIn, getProgMemMsg(IN_SMS_TEMP_ADJ_FORMAT), &adj);
   config.temperatureAdjustment = adj;
   sendSMS(from, getProgMemMsg(TEMPERATURE_ADJUSTMENT_SET_MSG));
 }
@@ -518,7 +518,7 @@ void subscribe(char *number, char *msgIn) {
   boolean found = false;
   char foundOrFree;
 
-  sscanf(msgIn, "sub %s", serviceName);
+  sscanf(msgIn, getProgMemMsg(IN_SMS_SUB_FORMAT), serviceName);
 
   serviceFlag = getServiceFlagFromName(serviceName);
   // Check if number is already in the config
@@ -554,7 +554,7 @@ void unsubscribe(char *number, char *msgIn) {
   boolean found = false;
   char foundOrFree;
 
-  sscanf(msgIn, "unsub %s", serviceName);
+  sscanf(msgIn, getProgMemMsg(IN_SMS_UNSUB_FORMAT), serviceName);
   serviceFlag = getServiceFlagFromName(serviceName);
   // look for number
   found = findRegisteredNumber(number, &foundOrFree);
@@ -577,13 +577,16 @@ void unsubscribe(char *number, char *msgIn) {
 void sendAlert() {
   unsigned char i, flag;
   unsigned long now = millis();  // We don't want to send too many SMS
+  char txtMsg[51];
   print(0, 1, "Alerts");
   for(i=0; i < MAX_PHONE_NUMBERS; i++) {
     // If phone number initialized AND subscribed to the alert service
     if((config.registeredNumbers[i].number[0] != 0) && (0 != (config.registeredNumbers[i].permissionFlags & FLAG_SERVICE_ALERT)) ) {
       // If enough time since last alert SMS was sent to this number, send a new one
       if(checkElapsedDelay(now, config.registeredNumbers[i].lastAlertSmsTime, config.registeredNumbers[i].minAlertInterval)) {
-        sendStatus(config.registeredNumbers[i].number);
+        sprintf(txtMsg, "ALERT %s %s", temperatureMsg, lightMsg);
+        txtMsg[50] = 0; // just in case
+        sendSMS(config.registeredNumbers[i].number, txtMsg);
         config.registeredNumbers[i].lastAlertSmsTime = now;
       }
     }
@@ -594,7 +597,7 @@ void sendAlert() {
 void sendStatus(char *toNumber) {
   char txtMsg[51];
   sprintf(txtMsg, "%s %s", temperatureMsg, lightMsg);
-  txtMsg[50] = 0;
+  txtMsg[50] = 0; // just in case
   sendSMS(toNumber, txtMsg);
 }
 
