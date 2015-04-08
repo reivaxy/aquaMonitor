@@ -253,7 +253,7 @@ boolean checkElapsedDelay(unsigned long now, unsigned long lastTime, unsigned lo
   }
 
   if(elapsed >= delay) {
-    return true;
+    result = true;
   }
   return result; 
 }
