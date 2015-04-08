@@ -107,7 +107,7 @@ const char inSmsResetSub[] PROGMEM = {"reset sub"};
 const char inSmsSubs[] PROGMEM = {"subs"};
 
 #define IN_SMS_INTERVAL_FORMAT 51
-const char inSmsIntervalFormat[] PROGMEM = {"interval %d"};
+const char inSmsIntervalFormat[] PROGMEM = {"interval %ld"};
 #define IN_SMS_TEMP_ADJ_FORMAT 52
 const char inSmsTempAdjFormat[] PROGMEM = {"temp adj %d"};
 #define IN_SMS_TEMP_FORMAT 53

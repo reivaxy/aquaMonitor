@@ -116,12 +116,16 @@ byte addr[MAX_DS1820_SENSORS][8];
 char progMemMsg[PROGMEM_MSG_MAX_SIZE + 1];
 char temperatureMsg[20];
 char lightMsg[20];
+char levelMsg[20];
 
 #define TEMPERATURE_CHECK_PERIOD 5000
-unsigned long lastTemperatureCheck = millis() - TEMPERATURE_CHECK_PERIOD;
+unsigned long lastTemperatureCheck = 0;
 
 #define LIGHT_CHECK_PERIOD 5000
-unsigned long lastLightCheck = millis() - LIGHT_CHECK_PERIOD;
+unsigned long lastLightCheck = 0;
+
+#define LEVEL_CHECK_PERIOD 5000
+unsigned long lastLevelCheck = 0;
 
 // Check for incoming sms every 30 seconds
 #define SMS_CHECK_PERIOD 30000
@@ -133,12 +137,17 @@ boolean gsmEnabled = !false;
 
 boolean statusOK = true;
 
+#define LEVEL_PIN 4
+
 // TODO: offer choice with DS1302
 DS1307 clock; // The RTC handle to get date and time
 
 // System initialization
 void setup(void) {
   Serial.begin(9600);
+
+  // Init pin with the level detector as input
+  pinMode(LEVEL_PIN, OUTPUT);
 
   // Just in case some loop goes crazy, limit the number of EEPROM writes to save it
   // TODO : this should be removed some day
@@ -222,6 +231,10 @@ void loop(void) {
   }
 #endif
 
+  if(checkElapsedDelay(now, lastLevelCheck, LEVEL_CHECK_PERIOD)) {
+    statusOK = statusOK && checkLevel();
+    lastLevelCheck = now;
+  }
   if(checkElapsedDelay(now, lastLightCheck, LIGHT_CHECK_PERIOD)) {
     statusOK = statusOK && checkLight();
     lastLightCheck = now;
@@ -251,6 +264,20 @@ boolean checkElapsedDelay(unsigned long now, unsigned long lastTime, unsigned lo
     result = true;
   }
   return result; 
+}
+
+boolean checkLevel() {
+  boolean levelOK = true;
+  levelOK = (HIGH == digitalRead(LEVEL_PIN));
+  if(levelOK) {
+    sprintf(levelMsg, "Level High");
+    print(15, 1, "H");
+  } else {
+    sprintf(levelMsg, "Level Low");
+    print(15, 1, "L");
+  }
+  print(0, 3, levelMsg);  // 3 line LCD... or not
+  return(levelOK);
 }
 
 // return true if temperature is within low and high thresholds
@@ -302,6 +329,9 @@ boolean checkTemperature() {
     print(0, 0, temperatureMsg);
     if((tc_100 < config.temperatureLowThreshold) || (tc_100 > config.temperatureHighThreshold)) {
       temperatureOK = false;
+      print(14, 0, "!");
+    } else {
+      print(14, 0, " ");
     }
   }
   return temperatureOK;
@@ -317,6 +347,9 @@ boolean checkLight() {
   // If level less than threshold during light on period => not ok
   if((lightLevel < config.lightThreshold) && inLightSchedule()) {
     lightOK = false;
+    print(14,1, "!");
+  } else {
+    print(14,1, " ");
   }
   return(lightOK);
 }
@@ -572,13 +605,13 @@ void sendAlert() {
   unsigned char i, flag;
   unsigned long now = millis();  // We don't want to send too many SMS
   char txtMsg[51];
-  print(0, 1, "Alerts");
+
   for(i=0; i < MAX_PHONE_NUMBERS; i++) {
     // If phone number initialized AND subscribed to the alert service
     if((config.registeredNumbers[i].number[0] != 0) && (0 != (config.registeredNumbers[i].permissionFlags & FLAG_SERVICE_ALERT)) ) {
       // If enough time since last alert SMS was sent to this number, send a new one
       if(checkElapsedDelay(now, config.registeredNumbers[i].lastAlertSmsTime, config.registeredNumbers[i].minAlertInterval)) {
-        sprintf(txtMsg, "ALERT %s %s", temperatureMsg, lightMsg);
+        sprintf(txtMsg, "ALERT %s %s %s", temperatureMsg, lightMsg, levelMsg);
         txtMsg[50] = 0; // just in case
         sendSMS(config.registeredNumbers[i].number, txtMsg);
         config.registeredNumbers[i].lastAlertSmsTime = now;
@@ -590,7 +623,7 @@ void sendAlert() {
 // Send an SMS with the status to the given phone number
 void sendStatus(char *toNumber) {
   char txtMsg[51];
-  sprintf(txtMsg, "%s %s", temperatureMsg, lightMsg);
+  sprintf(txtMsg, "%s %s %s", temperatureMsg, lightMsg, levelMsg);
   txtMsg[50] = 0; // just in case
   sendSMS(toNumber, txtMsg);
 }
@@ -617,21 +650,24 @@ void sendSMS(char *toNumber, char *message) {
 
 // Display a message to Serial console and on the LCD display if supported
 void print(int col, int row, char* displayMsg) {
-  Serial.println(displayMsg);
+  // Some markers for lcd display won't be sent  to serial debug
+  if(col == 0) {
+    Serial.println(displayMsg);
+  }
 #if WITH_LCD_SUPPORT
   char lcdBuf[LCD_WIDTH + 1];
   int cptr = 0;
   int count = strlen(displayMsg);
 
-  while((cptr < LCD_WIDTH) && (cptr < count)) {
+  while((cptr + col < LCD_WIDTH) && (cptr < count)) {
     lcdBuf[cptr] = displayMsg[cptr];
     cptr++;
   }
-  while(cptr < LCD_WIDTH) {
+  while(cptr < LCD_WIDTH - col) {
     lcdBuf[cptr] = ' ';
     cptr++;
   }
-  lcdBuf[LCD_WIDTH] = 0;
+  lcdBuf[LCD_WIDTH - col] = 0;  // just in case
 
   lcd.setCursor(col, row);
   lcd.print(lcdBuf);
