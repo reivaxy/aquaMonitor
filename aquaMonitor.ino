@@ -231,10 +231,6 @@ void loop(void) {
   }
 #endif
 
-  if(checkElapsedDelay(now, lastLevelCheck, LEVEL_CHECK_PERIOD)) {
-    statusOK = statusOK && checkLevel();
-    lastLevelCheck = now;
-  }
   if(checkElapsedDelay(now, lastLightCheck, LIGHT_CHECK_PERIOD)) {
     statusOK = statusOK && checkLight();
     lastLightCheck = now;
@@ -242,6 +238,10 @@ void loop(void) {
   if(checkElapsedDelay(now, lastTemperatureCheck, TEMPERATURE_CHECK_PERIOD)) {
     statusOK = statusOK && checkTemperature();
     lastTemperatureCheck = millis();
+  }
+  if(checkElapsedDelay(now, lastLevelCheck, LEVEL_CHECK_PERIOD)) {
+    statusOK = statusOK && checkLevel();
+    lastLevelCheck = now;
   }
   if(checkElapsedDelay(now, lastSmsCheck, SMS_CHECK_PERIOD)) {
     checkSMS();
@@ -276,7 +276,7 @@ boolean checkLevel() {
     sprintf(levelMsg, "Level Low");
     print(15, 1, "L");
   }
-  print(0, 3, levelMsg);  // 3 line LCD... or not
+  //print(0, 2, levelMsg);  // 3 line LCD... or not
   return(levelOK);
 }
 
