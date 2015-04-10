@@ -54,6 +54,21 @@ struct eepromConfig {
   phoneConfig registeredNumbers[MAX_PHONE_NUMBERS];  // Phone numbers to send alerts to, according to their subscriptions and permissions
 } config;
 
+struct displayData {
+  char temperatureMsg[20];
+  char lightMsg[20];
+  char levelMsg[20];
+  unsigned char offset = 0;
+  boolean irIndicator = false;
+  // TODO size below should somehow be LCD width, but what if LCD disabled with compilation directives ?
+  char permanent[17]; // Message always displayed
+  // Transient message will be displayed for short durations
+  unsigned long transientStartDisplayTime=0;
+  unsigned long transientDisplayDuration=2000; // 2 seconds
+  unsigned long refreshPeriod = 400; // every 100 ms
+  unsigned long lastRefresh = 0;
+} display;
+
 // Flags for services subscriptions and permissions
 #define FLAG_SERVICE_ALERT   0x01
 #define FLAG_SERVICE_EVENT   0x02
@@ -114,9 +129,6 @@ byte addr[MAX_DS1820_SENSORS][8];
 // small amount of variable space left me with little choice.
 #define PROGMEM_MSG_MAX_SIZE 40
 char progMemMsg[PROGMEM_MSG_MAX_SIZE + 1];
-char temperatureMsg[20];
-char lightMsg[20];
-char levelMsg[20];
 
 #define TEMPERATURE_CHECK_PERIOD 5000
 unsigned long lastTemperatureCheck = 0;
@@ -161,21 +173,21 @@ void setup(void) {
   lcd.clear();
 #endif
 
-  print(0, 0, getProgMemMsg(INIT_AQUAMON_MSG));
+  displayTransient(getProgMemMsg(INIT_AQUAMON_MSG));
   Serial.println(getProgMemMsg(BUILD_MSG));
 
   readConfig();
   displayConfig();
 
 #if WITH_IR_SUPPORT
-  print(0, 1, getProgMemMsg(INIT_IR_MSG));
+  displayTransient(getProgMemMsg(INIT_IR_MSG));
   reception_ir.enableIRIn(); // init receiver
   delay(250);
 #endif
 
-  print(0, 1, getProgMemMsg(TEMP_INIT_MSG));
+  displayTransient(getProgMemMsg(TEMP_INIT_MSG));
   if (!ds.search(addr[0])) {
-    print(0, 1, getProgMemMsg(ADDR_ERR_MSG));
+    displayTransient(getProgMemMsg(ADDR_ERR_MSG));
     ds.reset_search();
     delay(250);
   }
@@ -187,14 +199,14 @@ void setup(void) {
   boolean notConnected = true && gsmEnabled;
 
   // Start GSM shield
-  print(0, 0, getProgMemMsg(INIT_GSM_MSG));
+  displayTransient(getProgMemMsg(INIT_GSM_MSG));
   while(notConnected) {
-    print(0, 1, getProgMemMsg(CONNECTING_GSM_MSG));
+    displayTransient(getProgMemMsg(CONNECTING_GSM_MSG));
     if(gsmAccess.begin(PINNUMBER)==GSM_READY) {
-      print(0, 1, getProgMemMsg(CONNECTED_GSM_MSG));
+      displayTransient(getProgMemMsg(CONNECTED_GSM_MSG));
       notConnected = false;
     } else {
-      print(0, 1, getProgMemMsg(NOT_CONNECTED_GSM_MSG));
+      displayTransient(getProgMemMsg(NOT_CONNECTED_GSM_MSG));
       delay(200);
     }
   }
@@ -217,6 +229,10 @@ char * getProgMemMsg(int messageId) {
 void loop(void) {
   // RTC does not have an epoch field :(
   unsigned long now = millis();
+
+  if(checkElapsedDelay(now, display.lastRefresh, display.refreshPeriod)) {
+    refreshDisplay();
+  }
 
 #if WITH_IR_SUPPORT
   decode_results code;
@@ -270,13 +286,12 @@ boolean checkLevel() {
   boolean levelOK = true;
   levelOK = (HIGH == digitalRead(LEVEL_PIN));
   if(levelOK) {
-    sprintf(levelMsg, "Level High");
-    print(15, 1, "H");
+    sprintf(display.levelMsg, getProgMemMsg(LEVEL_HIGH_MSG));
+    deletePermanent(getProgMemMsg(LEVEL_ALERT_MSG));
   } else {
-    sprintf(levelMsg, "Level Low");
-    print(15, 1, "L");
+    sprintf(display.levelMsg, getProgMemMsg(LEVEL_LOW_MSG));
+    displayPermanent(getProgMemMsg(LEVEL_ALERT_MSG));
   }
-  //print(0, 2, levelMsg);  // 3 line LCD... or not
   return(levelOK);
 }
 
@@ -291,9 +306,9 @@ boolean checkTemperature() {
   byte data[12];
 
   if ( OneWire::crc8( addr[sensor], 7) != addr[sensor][7]) {
-    print(0, 0, getProgMemMsg(CRC_NOT_VALID_MSG));
+    displayTransient(getProgMemMsg(CRC_NOT_VALID_MSG));
   } else if ( addr[sensor][0] != 0x28) {
-    print(0, 0, getProgMemMsg(FAMILY_MSG));
+    displayTransient(getProgMemMsg(FAMILY_MSG));
   } else {
     ds.reset();
     ds.select(addr[sensor]);
@@ -324,14 +339,13 @@ boolean checkTemperature() {
 
     whole = tc_100 / 100;  // separate off the whole and fractional portions
     fract = tc_100 % 100;
-
-    sprintf(temperatureMsg, getProgMemMsg(TEMPERATURE_MSG_FORMAT), signBit ? '-' : '+', whole, fract < 10 ? 0 : fract);
-    print(0, 0, temperatureMsg);
+    sprintf(display.temperatureMsg, getProgMemMsg(TEMPERATURE_MSG_FORMAT), signBit ? '-' : '+', whole, fract < 10 ? 0 : fract);
+    //Serial.println(display.temperatureMsg);
     if((tc_100 < config.temperatureLowThreshold) || (tc_100 > config.temperatureHighThreshold)) {
       temperatureOK = false;
-      print(14, 0, "!");
+      displayPermanent(getProgMemMsg(TEMPERATURE_ALERT_MSG));
     } else {
-      print(14, 0, " ");
+      deletePermanent(getProgMemMsg(TEMPERATURE_ALERT_MSG));
     }
   }
   return temperatureOK;
@@ -342,14 +356,13 @@ boolean checkLight() {
   long lightLevel = 0;
   boolean lightOK = true;
   lightLevel = analogRead(LIGHT_PIN);
-  sprintf(lightMsg, getProgMemMsg(LIGHT_MSG_FORMAT), lightLevel);
-  print(0, 1, lightMsg);
+  sprintf(display.lightMsg, getProgMemMsg(LIGHT_MSG_FORMAT), lightLevel);
   // If level less than threshold during light on period => not ok
   if((lightLevel < config.lightThreshold) && inLightSchedule()) {
     lightOK = false;
-    print(14,1, "!");
+    displayPermanent(getProgMemMsg(LIGHT_ALERT_MSG));
   } else {
-    print(14,1, " ");
+    deletePermanent(getProgMemMsg(LIGHT_ALERT_MSG));
   }
   return(lightOK);
 }
@@ -378,7 +391,7 @@ void checkSMS() {
   char c,i;
   int cptr = 0;
   if(!gsmEnabled) return;
-  Serial.println(getProgMemMsg(CHECK_SMS_MSG));
+  displayTransient(getProgMemMsg(CHECK_SMS_MSG));
   // TODO : loop to process all incoming SMS
   while (sms.available())
   {
@@ -437,7 +450,7 @@ void checkSMS() {
         }
       } else {
         // Don't send an SMS back, waste no more time.
-        print(0, 1, getProgMemMsg(UNKNOWN_MSG));
+        displayTransient(getProgMemMsg(UNKNOWN_MSG));
       }
     }
   }
@@ -611,7 +624,7 @@ void sendAlert() {
     if((config.registeredNumbers[i].number[0] != 0) && (0 != (config.registeredNumbers[i].permissionFlags & FLAG_SERVICE_ALERT)) ) {
       // If enough time since last alert SMS was sent to this number, send a new one
       if(checkElapsedDelay(now, config.registeredNumbers[i].lastAlertSmsTime, config.registeredNumbers[i].minAlertInterval)) {
-        sprintf(txtMsg, "ALERT %s %s %s", temperatureMsg, lightMsg, levelMsg);
+        sprintf(txtMsg, "ALERT %s %s %s", display.temperatureMsg, display.lightMsg, display.levelMsg);
         txtMsg[50] = 0; // just in case
         sendSMS(config.registeredNumbers[i].number, txtMsg);
         config.registeredNumbers[i].lastAlertSmsTime = now;
@@ -623,7 +636,7 @@ void sendAlert() {
 // Send an SMS with the status to the given phone number
 void sendStatus(char *toNumber) {
   char txtMsg[51];
-  sprintf(txtMsg, "%s %s %s", temperatureMsg, lightMsg, levelMsg);
+  sprintf(txtMsg, "%s %s %s", display.temperatureMsg, display.lightMsg, display.levelMsg);
   txtMsg[50] = 0; // just in case
   sendSMS(toNumber, txtMsg);
 }
@@ -636,54 +649,19 @@ void sendSMS(char *toNumber, char *message) {
   strncpy(msg, message, 199);
   msg[199] = 0;
   if(toNumber[0] == 0) return;
-  print(0, 0, getProgMemMsg(SENDING_SMS_MSG));
   Serial.println(msg);
 
   // send the message
   if(gsmEnabled) {
+    displayTransient(getProgMemMsg(SENDING_SMS_MSG));
     sms.beginSMS(toNumber);
     sms.print(msg);
     sms.endSMS();
-    print(0, 0, getProgMemMsg(SMS_SENT_MSG));
+    displayTransient(getProgMemMsg(SMS_SENT_MSG));
   }
-}
-
-// Display a message to Serial console and on the LCD display if supported
-void print(int col, int row, char* displayMsg) {
-  // Some markers for lcd display won't be sent  to serial debug
-  if(col == 0) {
-    Serial.println(displayMsg);
-  }
-#if WITH_LCD_SUPPORT
-  char lcdBuf[LCD_WIDTH + 1];
-  int cptr = 0;
-  int count = strlen(displayMsg);
-
-  while((cptr + col < LCD_WIDTH) && (cptr < count)) {
-    lcdBuf[cptr] = displayMsg[cptr];
-    cptr++;
-  }
-  while(cptr < LCD_WIDTH - col) {
-    lcdBuf[cptr] = ' ';
-    cptr++;
-  }
-  lcdBuf[LCD_WIDTH - col] = 0;  // just in case
-
-  lcd.setCursor(col, row);
-  lcd.print(lcdBuf);
-#endif
 }
 
 #if WITH_IR_SUPPORT
-// Remove the IR indicators from the LCD display
-void resetIRDisplay() {
-#if WITH_LCD_SUPPORT
-  //lcd.setCursor(14,0);
-  //lcd.print("  ");
-  lcd.setCursor(15,1);
-  lcd.print(" ");
-#endif
-}
 
 // Check if an IR code was received and process it according to its value
 void processIRCode(unsigned long code) {
@@ -701,36 +679,35 @@ void processIRCode(unsigned long code) {
     break;
     case IR_INCR_LIGHT_THRESHOLD:
       config.lightThreshold ++;
-      sprintf(msgBuf, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
-      print(0, 1, msgBuf);
+      sprintf(display.transient, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
+      displayTransient(msgBuf);
     break;
     case IR_DECR_LIGHT_THRESHOLD:
       config.lightThreshold --;
       sprintf(msgBuf, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
-      print(0, 1, msgBuf);
+      displayTransient(msgBuf);
     break;
 
     case IR_INCR_TEMP_ADJUSTMENT:
       config.temperatureAdjustment ++;
       sprintf(msgBuf, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
-      print(0, 1, msgBuf);
+      displayTransient(msgBuf);
     break;
     case IR_DECR_TEMP_ADJUSTMENT:
       config.temperatureAdjustment --;
       sprintf(msgBuf, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
-      print(0, 1, msgBuf);
+      displayTransient(msgBuf);
     break;
 
     case IR_DISPLAY_THRESHOLDS:
       sprintf(msgBuf, getProgMemMsg(TEMPERATURE_THRESHOLD_MSG_FORMAT), config.temperatureLowThreshold, config.temperatureHighThreshold);
-      print(0, 0, msgBuf);
       sprintf(msgBuf, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
-      print(0, 1, msgBuf);
+      displayTransient(msgBuf);
     break;
 
     case IR_DISPLAY_TEMP_ADJUST:
       sprintf(msgBuf, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
-      print(0, 0, msgBuf);
+      displayTransient(msgBuf);
     break;
 
     case IR_SAVE_TO_EEPROM:
@@ -740,7 +717,7 @@ void processIRCode(unsigned long code) {
       displayConfig();
     break;
     default:
-      print(15, 1, "?");
+      displayTransient("?");
   }
 }
 #endif
@@ -868,7 +845,7 @@ void readConfig() {
   unsigned char i;
   EEPROM.readBlock(CONFIG_ADDRESS, config);
   if(config.version != CONFIG_VERSION) {
-    print(0, 1, getProgMemMsg(NEW_CONFIG_MSG));
+    displayTransient(getProgMemMsg(NEW_CONFIG_MSG));
 
     config.version = CONFIG_VERSION;
     config.temperatureAdjustment = 0;
@@ -908,9 +885,66 @@ void resetSub() {
 // Save the configuration to EEPROM
 // TODO : should that be for admin only ?
 void saveConfig(char *toNumber) {
-  print(0, 0, getProgMemMsg(SAVING_CONFIG_MSG));
+  displayTransient(getProgMemMsg(SAVING_CONFIG_MSG));
   EEPROM.writeBlock(CONFIG_ADDRESS, config);
   sendSMS(toNumber, getProgMemMsg(CONFIG_SAVED_MSG));
 }
 
+// In charge of displaying messages
+void refreshDisplay() {
+  char message[100];
+  char scrolledMessage[100];
+  char transferChar;
+  int remaining;
 
+  display.lastRefresh = millis();
+  /*
+  Serial.println(display.temperatureMsg);
+  Serial.println(display.lightMsg);
+  Serial.println(display.levelMsg);
+  */
+
+  sprintf(message, "%s, %s, %s, ", display.temperatureMsg, display.lightMsg, display.levelMsg);
+  remaining = strlen(message) - display.offset;
+  strncpy(scrolledMessage, message + display.offset, 16);
+  strncat(scrolledMessage, message, display.offset );
+  scrolledMessage[16] = 0;
+  display.offset++;
+  if(remaining == 0) {
+    display.offset = 0;
+  }
+  #if WITH_LCD_SUPPORT
+  if(checkElapsedDelay(millis(), display.transientStartDisplayTime, display.transientDisplayDuration)) {
+    lcd.clear();
+    displayPermanent(NULL);
+  }
+  lcd.setCursor(0,0);
+  lcd.print(scrolledMessage);
+  #endif
+}
+
+void displayTransient(char *msg) {
+  #if WITH_LCD_SUPPORT
+  lcd.setCursor(0,1);
+  while(strlen(msg) < 16) {
+    strcat(msg, " ");
+  }
+  lcd.print(msg);
+  display.transientStartDisplayTime = millis();
+  #endif
+}
+ void displayPermanent(char *msg) {
+   if(msg != NULL) {
+     strncpy(display.permanent, msg, 16);
+     display.permanent[16] = 0;
+   }
+   lcd.setCursor(0,1);
+   lcd.print(display.permanent);
+ }
+
+ void deletePermanent(char *msg) {
+   if(0 == strncmp(display.permanent, msg, 16))  {
+     lcd.clear();
+     display.permanent[0] = 0;
+   }
+ }

@@ -36,11 +36,11 @@ const char sendingSMSMsg[] PROGMEM = {"Sending SMS..."};
 #define SENDING_SMS_MSG 15
 const char SMSSentMsg[] PROGMEM = {"SMS sent"};
 #define SMS_SENT_MSG 16
-const char lightThresholdMsgFormat[] PROGMEM = {"Light th: %d"};
+const char lightThresholdMsgFormat[] PROGMEM = {"Light limit: %d"};
 #define LIGHT_THRESHOLD_MSG_FORMAT 17
 const char temperatureAdjustmentMsgFormat[] PROGMEM = {"Temp Adj: %d"};
 #define TEMPERATURE_ADJUSTMENT_MSG_FORMAT 18
-const char temperatureThresholdMsgFormat[] PROGMEM = {"Temp: %d %d"};
+const char temperatureThresholdMsgFormat[] PROGMEM = {"Temp : %d %d"};
 #define TEMPERATURE_THRESHOLD_MSG_FORMAT 19
 const char numberSubscribedMsg[] PROGMEM = {"Sub to %s done"};
 #define NUMBER_SUBSCRIBED_MSG 20
@@ -80,46 +80,56 @@ const char currentDateFormatMsg[] PROGMEM = {"Date: %02d/%02d/%02d %02d:%02d"};
 #define CURRENT_DATE_FORMAT_MSG 37
 const char lightScheduleSetMsg[] PROGMEM = {"Light schedule set"};
 #define LIGHT_SCHEDULE_SET_MSG 38
+const char temperatureAlertMsg[] PROGMEM = {"Temp Alert"};
+#define TEMPERATURE_ALERT_MSG 39
+const char lightAlertMsg[] PROGMEM = {"Light alert"};
+#define LIGHT_ALERT_MSG 40
+const char levelAlertMsg[] PROGMEM = {"Level alert"};
+#define LEVEL_ALERT_MSG 41
+const char levelLowMsg[] PROGMEM = {"Level low"};
+#define LEVEL_LOW_MSG 42
+const char levelHighMsg[] PROGMEM = {"Level high"};
+#define LEVEL_HIGH_MSG 43
 
-#define IN_SMS_INTERVAL 39
 const char inSmsInterval[] PROGMEM = {"interval "};
-#define IN_SMS_TEMP_ADJ 40
+#define IN_SMS_INTERVAL 44
 const char inSmsTempAdj[] PROGMEM = {"temp adj "};
-#define IN_SMS_CONFIG 41
+#define IN_SMS_TEMP_ADJ 45
 const char inSmsConfig[] PROGMEM = {"config"};
-#define IN_SMS_TEMP 42
+#define IN_SMS_CONFIG 46
 const char inSmsTemp[] PROGMEM = {"temp "};
-#define IN_SMS_LIGHT 43
+#define IN_SMS_TEMP 47
 const char inSmsLight[] PROGMEM = {"light "};
-#define IN_SMS_SCHEDULE 44
+#define IN_SMS_LIGHT 48
 const char inSmsSchedule[] PROGMEM = {"schedule "};
-#define IN_SMS_SAVE 45
+#define IN_SMS_SCHEDULE 49
 const char inSmsSave[] PROGMEM = {"save"};
-#define IN_SMS_STATUS 46
+#define IN_SMS_SAVE 50
 const char inSmsStatus[] PROGMEM = {"status"};
-#define IN_SMS_SUB 47
+#define IN_SMS_STATUS 51
 const char inSmsSub[] PROGMEM = {"sub "};
-#define IN_SMS_UNSUB 48
+#define IN_SMS_SUB 52
 const char inSmsUnsub[] PROGMEM = {"unsub "};
-#define IN_SMS_RESET_SUB 49
+#define IN_SMS_UNSUB 53
 const char inSmsResetSub[] PROGMEM = {"reset sub"};
-#define IN_SMS_SUBS 50
+#define IN_SMS_RESET_SUB 54
 const char inSmsSubs[] PROGMEM = {"subs"};
+#define IN_SMS_SUBS 55
 
-#define IN_SMS_INTERVAL_FORMAT 51
 const char inSmsIntervalFormat[] PROGMEM = {"interval %ld"};
-#define IN_SMS_TEMP_ADJ_FORMAT 52
+#define IN_SMS_INTERVAL_FORMAT 56
 const char inSmsTempAdjFormat[] PROGMEM = {"temp adj %d"};
-#define IN_SMS_TEMP_FORMAT 53
+#define IN_SMS_TEMP_ADJ_FORMAT 57
 const char inSmsTempFormat[] PROGMEM = {"temp %d %d"};
-#define IN_SMS_LIGHT_FORMAT 54
+#define IN_SMS_TEMP_FORMAT 58
 const char inSmsLightFormat[] PROGMEM = {"light %d"};
-#define IN_SMS_SCHEDULE_FORMAT 55
+#define IN_SMS_LIGHT_FORMAT 59
 const char inSmsScheduleFormat[] PROGMEM = {"schedule %d:%d - %d:%d"};
-#define IN_SMS_SUB_FORMAT 56
+#define IN_SMS_SCHEDULE_FORMAT 60
 const char inSmsSubFormat[] PROGMEM = {"sub %s"};
-#define IN_SMS_UNSUB_FORMAT 57
+#define IN_SMS_SUB_FORMAT 61
 const char inSmsUnsubFormat[] PROGMEM = {"unsub %s"};
+#define IN_SMS_UNSUB_FORMAT 62
 
 const char* const messages[] PROGMEM = {
   initAquamonMsg, initIRMsg, tempInitMsg, addrErrMsg, initGSMMsg,   // 0 to 4
@@ -129,7 +139,8 @@ const char* const messages[] PROGMEM = {
   numberSubscribedMsg, numberNotSubscribedMsg, numberUnsubscribedMsg, numberNotUnsubscribedMsg, savingConfigMsg,      // 20 TO 24
   configSavedMsg, newConfigMsg, accessDeniedMsg, unknownMsg, buildMsg,    // 25 TO 29
   resetSubDoneMsg, lightScheduleMsgFormat, temperatureAdjustmentSetMsg, temperatureThresholdsSetMsg, lightThresholdSetMsg,
-  intervalSetMsg, unknownNumberMsg, currentDateFormatMsg, lightScheduleSetMsg,
+  intervalSetMsg, unknownNumberMsg, currentDateFormatMsg, lightScheduleSetMsg, temperatureAlertMsg,
+  lightAlertMsg, levelAlertMsg, levelLowMsg, levelHighMsg,
 
   inSmsInterval, inSmsTempAdj, inSmsConfig, inSmsTemp, inSmsLight,
   inSmsSchedule, inSmsSave, inSmsStatus, inSmsSub, inSmsUnsub,
