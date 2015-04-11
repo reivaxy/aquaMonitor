@@ -35,8 +35,7 @@ When complete, will probably not fit on Arduino UNO but will require a Mega
 
 
 # TODOs
-* centralized LCD message display to insure transient messages display and removal
-* Setting the clock date and time (approx...) by SMS
+* Setting or adjusting the clock date and time (approx...) by SMS
 * water movement detection to warn about pumps failure (sensor remains to be found...) 
 * backuped power (and alert) in case of power failure
 * Saving periodical measure data on optional SD card (and may be info about sent and received SMS)
