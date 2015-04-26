@@ -1,3 +1,5 @@
+# Hardware
+
 This is the hardware stuff you'll need to build it all.
 
 It will eventually contain all the schematics, as well as 3D print files for the case for the arduino and extra circuits, 
@@ -23,7 +25,7 @@ And here is the main body printed, with an unfinished prototype for the adjustab
 <img src="http://adgjm.eu/img/github/IMG_20150426_092107-1024.jpg" width="400px"/>
 
 
-
+# License
 
 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.
 
