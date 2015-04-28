@@ -11,12 +11,11 @@ Here is the schematic:
 
 Here is the sensor bracket body design:
 
-<img src="http://adgjm.eu/img/github/aquamonitorBracket.png" width="400px"/>
+<img  src="http://adgjm.eu/img/github/aquamonitorBracket.png" width="400px"/>
 
 and the adjustable water level sensor bracket:
 
 <img src="http://adgjm.eu/img/github/waterLevelSensorBracket.png" width="400px"/>
-
 
 Here is the main body printed, with an unfinished prototype for the adjustable water level sensor bracket:
 
