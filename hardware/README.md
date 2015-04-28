@@ -18,11 +18,17 @@ and the adjustable water level sensor bracket:
 <img src="http://adgjm.eu/img/github/waterLevelSensorBracket.png" width="400px"/>
 
 
-And here is the main body printed, with an unfinished prototype for the adjustable water level sensor bracket:
+Here is the main body printed, with an unfinished prototype for the adjustable water level sensor bracket:
 
 <img src="http://adgjm.eu/img/github/IMG_20150426_092020-1024.jpg" width="400px"/>
 
 <img src="http://adgjm.eu/img/github/IMG_20150426_092107-1024.jpg" width="400px"/>
+
+And, finally:
+
+<img src="http://adgjm.eu/img/github/sensorBracket-1024.jpg" width="400px"/>
+
+<img src="http://adgjm.eu/img/github/sensorBracket1-1024.jpg" width="400px"/>
 
 
 # License
