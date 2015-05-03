@@ -39,8 +39,8 @@ struct phoneConfig {
 
 // Change this version to reset the EEPROM saved configuration
 // when the structure changes
-#define CONFIG_VERSION 5
-#define CONFIG_ADDRESS 0
+#define CONFIG_VERSION 6
+#define CONFIG_ADDRESS 10        // Do not use adress 0, it is not reliable.
 struct eepromConfig {
   unsigned int version;          // Version for this config structure and default values. Always keep as first structure member 
   int temperatureAdjustment;     // Signed offset to add to temperature measure to adjust it
@@ -51,6 +51,7 @@ struct eepromConfig {
   byte lightOnMinute;            // Minute ...
   byte lightOffHour;             // Hour after which light below threshold won't be considered an alert
   byte lightOffMinute;           // Minute ...
+  int highLevelPinValue;         // Value (HIGH or LOW) on level pin when water level is ok
   phoneConfig registeredNumbers[MAX_PHONE_NUMBERS];  // Phone numbers to send alerts to, according to their subscriptions and permissions
 } config;
 
@@ -112,7 +113,7 @@ GSM_SMS sms;
 // #include are processed no matter what (known bug) : comment or uncomment them is the only way
 #include <LiquidCrystal.h>
 // initialize the library with the interface pins
-LiquidCrystal lcd(7, 8, 9, 10, 11 , 12);
+LiquidCrystal lcd(7, 8, 9, 11 , 12, 13);
 #define LCD_WIDTH 16
 #define LCD_HEIGHT 2
 #endif
@@ -159,7 +160,8 @@ void setup(void) {
   Serial.begin(9600);
 
   // Init pin with the level detector as input
-  pinMode(LEVEL_PIN, OUTPUT);
+  pinMode(LEVEL_PIN, INPUT);
+  digitalWrite(LEVEL_PIN, HIGH); // Activate pullup resistor
 
   // Just in case some loop goes crazy, limit the number of EEPROM writes to save it
   // TODO : this should be removed some day
@@ -284,7 +286,7 @@ boolean checkElapsedDelay(unsigned long now, unsigned long lastTime, unsigned lo
 
 boolean checkLevel() {
   boolean levelOK = true;
-  levelOK = (HIGH == digitalRead(LEVEL_PIN));
+  levelOK = (config.highLevelPinValue == digitalRead(LEVEL_PIN));
   if(levelOK) {
     sprintf(display.levelMsg, getProgMemMsg(LEVEL_HIGH_MSG));
     deletePermanent(getProgMemMsg(LEVEL_ALERT_MSG));
@@ -856,6 +858,7 @@ void readConfig() {
     config.lightOnMinute = 30;
     config.lightOffHour = 20;
     config.lightOffMinute = 30;
+    config.highLevelPinValue = HIGH;
 
     // Reset all subscriptions
     resetSub();
