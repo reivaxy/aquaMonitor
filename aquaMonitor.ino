@@ -170,10 +170,7 @@ void setup(void) {
   // Initialise RTC
   clock.begin();
 
-#if WITH_LCD_SUPPORT
-  lcd.begin(LCD_WIDTH, LCD_HEIGHT,1);
-  lcd.clear();
-#endif
+  initLCD();
 
   displayTransient(getProgMemMsg(INIT_AQUAMON_MSG));
   Serial.println(getProgMemMsg(BUILD_MSG));
@@ -423,7 +420,7 @@ void checkSMS() {
       Serial.println(msgIn);
       if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_INTERVAL))) {   // Sender wants to set his alert minimum interval (seconds)
         setAlertInterval(from, msgIn);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_TEMP_ADJ))) {       // Sender wants to set temperature adjustment
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_TEMP_ADJ))) {  // Sender wants to set temperature adjustment
         setTemperatureAdjustment(from, msgIn);
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SUBS))) {   // Sender wants to receive subscription information
         sendSubs(from);
@@ -450,6 +447,8 @@ void checkSMS() {
           resetSub();
           sendSMS(from, getProgMemMsg(RESET_SUB_DONE_MSG));
         }
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_RESET_LCD))) {  // Sender wants to reset the displa
+        initLCD();
       } else {
         // Don't send an SMS back, waste no more time.
         displayTransient(getProgMemMsg(UNKNOWN_MSG));
@@ -936,18 +935,26 @@ void displayTransient(char *msg) {
   display.transientStartDisplayTime = millis();
   #endif
 }
- void displayPermanent(char *msg) {
-   if(msg != NULL) {
-     strncpy(display.permanent, msg, 16);
-     display.permanent[16] = 0;
-   }
-   lcd.setCursor(0,1);
-   lcd.print(display.permanent);
- }
 
- void deletePermanent(char *msg) {
-   if(0 == strncmp(display.permanent, msg, 16))  {
-     lcd.clear();
-     display.permanent[0] = 0;
-   }
- }
+void displayPermanent(char *msg) {
+  if(msg != NULL) {
+    strncpy(display.permanent, msg, 16);
+    display.permanent[16] = 0;
+  }
+  lcd.setCursor(0,1);
+  lcd.print(display.permanent);
+}
+
+void deletePermanent(char *msg) {
+  if(0 == strncmp(display.permanent, msg, 16))  {
+    lcd.clear();
+    display.permanent[0] = 0;
+  }
+}
+
+void initLCD() {
+#if WITH_LCD_SUPPORT
+  lcd.begin(LCD_WIDTH, LCD_HEIGHT,1);
+  lcd.clear();
+#endif
+}

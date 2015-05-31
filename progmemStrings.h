@@ -115,21 +115,23 @@ const char inSmsResetSub[] PROGMEM = {"reset sub"};
 #define IN_SMS_RESET_SUB 54
 const char inSmsSubs[] PROGMEM = {"subs"};
 #define IN_SMS_SUBS 55
+const char inSmsResetLCD[] PROGMEM = {"display"};
+#define IN_SMS_RESET_LCD 56
 
 const char inSmsIntervalFormat[] PROGMEM = {"interval %ld"};
-#define IN_SMS_INTERVAL_FORMAT 56
+#define IN_SMS_INTERVAL_FORMAT 57
 const char inSmsTempAdjFormat[] PROGMEM = {"temp adj %d"};
-#define IN_SMS_TEMP_ADJ_FORMAT 57
+#define IN_SMS_TEMP_ADJ_FORMAT 58
 const char inSmsTempFormat[] PROGMEM = {"temp %d %d"};
-#define IN_SMS_TEMP_FORMAT 58
+#define IN_SMS_TEMP_FORMAT 59
 const char inSmsLightFormat[] PROGMEM = {"light %d"};
-#define IN_SMS_LIGHT_FORMAT 59
+#define IN_SMS_LIGHT_FORMAT 60
 const char inSmsScheduleFormat[] PROGMEM = {"schedule %d:%d - %d:%d"};
-#define IN_SMS_SCHEDULE_FORMAT 60
+#define IN_SMS_SCHEDULE_FORMAT 61
 const char inSmsSubFormat[] PROGMEM = {"sub %s"};
-#define IN_SMS_SUB_FORMAT 61
+#define IN_SMS_SUB_FORMAT 62
 const char inSmsUnsubFormat[] PROGMEM = {"unsub %s"};
-#define IN_SMS_UNSUB_FORMAT 62
+#define IN_SMS_UNSUB_FORMAT 63
 
 const char* const messages[] PROGMEM = {
   initAquamonMsg, initIRMsg, tempInitMsg, addrErrMsg, initGSMMsg,   // 0 to 4
@@ -144,7 +146,7 @@ const char* const messages[] PROGMEM = {
 
   inSmsInterval, inSmsTempAdj, inSmsConfig, inSmsTemp, inSmsLight,
   inSmsSchedule, inSmsSave, inSmsStatus, inSmsSub, inSmsUnsub,
-  inSmsResetSub, inSmsSubs,
+  inSmsResetSub, inSmsSubs, inSmsResetLCD,
 
   inSmsIntervalFormat, inSmsTempAdjFormat, inSmsTempFormat, inSmsLightFormat, inSmsScheduleFormat,
   inSmsSubFormat, inSmsUnsubFormat
@@ -152,4 +154,5 @@ const char* const messages[] PROGMEM = {
 
 
 };
+
 
