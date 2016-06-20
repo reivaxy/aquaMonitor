@@ -19,9 +19,7 @@ __asm volatile ("nop");
 // Compilation directives to enable/disable stuff like IR support
 // Beware, 'includes' for the matching libraries need to be commented / uncommented
 // In the first #if using these flags
-#define WITH_IR_SUPPORT false      // About 7k prog, 200B RAM
 #define WITH_LCD_SUPPORT true      // About 1,6k prog, 30B RAM
-
 
 // Strings to store in progmem space to free variable space
 #include "./progmemStrings.h"
@@ -37,10 +35,10 @@ struct phoneConfig {
   unsigned long minAlertInterval = DEFAULT_MIN_ALERT_INTERVAL;  // minimum interval in milliseconds between 2 alert SMS to avoir flooding
 };
 
-// Change this version to reset the EEPROM saved configuration
+// Change this version to reset the EEPROM saved configuration and/or to init date and time
 // when the structure changes
-#define CONFIG_VERSION 6
-#define CONFIG_ADDRESS 10        // Do not use adress 0, it is not reliable.
+#define CONFIG_VERSION 7
+#define CONFIG_ADDRESS 16        // Do not use adress 0, it is not reliable.
 struct eepromConfig {
   unsigned int version;          // Version for this config structure and default values. Always keep as first structure member 
   int temperatureAdjustment;     // Signed offset to add to temperature measure to adjust it
@@ -60,7 +58,6 @@ struct displayData {
   char lightMsg[20];
   char levelMsg[20];
   unsigned char offset = 0;
-  boolean irIndicator = false;
   // TODO size below should somehow be LCD width, but what if LCD disabled with compilation directives ?
   char permanent[17]; // Message always displayed
   // Transient message will be displayed for short durations
@@ -76,32 +73,6 @@ struct displayData {
 
 #define FLAG_ADMIN           0x80
 
-#if WITH_IR_SUPPORT
-// #include are processed no matter what (known bug) : comment or uncomment them is the only way
-//#include <IRremote.h>
-// Init IR
-#define IR_PIN 5
-IRrecv reception_ir(IR_PIN);
-
-// These are the codes sent by Remote used to trigger stuff. Replace with your own
-// TODO: Some future feature may need a sequence of keys. Not handled for now
-#define IR_DISPLAY_PHONE_NUMBER 0xF720DF       // (R key on xanlite remote, for now)
-#define IR_INCR_LIGHT_THRESHOLD 0xF700FF       // (light+ on xanlite remote, for now)
-#define IR_DECR_LIGHT_THRESHOLD 0xF7807F       // (light- on xanlite remote, for now)
-#define IR_INCR_TEMP_ADJUSTMENT 0xF740BF       // (OFF on xanlite remote, for now)
-#define IR_DECR_TEMP_ADJUSTMENT 0xF7C03F       // (ON on xanlite remote, for now)
-#define IR_DISPLAY_THRESHOLDS   0xF7A05F       // (V on xanlite remote, for now)
-#define IR_DISPLAY_TEMP_ADJUST  0xF7609F       // (B on xanlite remote, for now)
-#define IR_SAVE_TO_EEPROM       0xF7E817    // ('Lent' on xanlite remote, for now)
-#define IR_LOG_CONFIG           0xF728D7    // jaune clair
-// When a key is maintained pressed, a different code is sent, and we want to repeat the operation
-#define IR_REPEAT_CODE 0xFFFFFFFF
-unsigned long previousCode = 0;
-
-#define IR_DISPLAY_TIMEOUT 250
-unsigned long lastIrDisplay = 0;
-#endif
-
 // GSM
 // initialize the library instance
 #define PINNUMBER "" // Pin number for the SIM CARD
@@ -113,13 +84,14 @@ GSM_SMS sms;
 // #include are processed no matter what (known bug) : comment or uncomment them is the only way
 #include <LiquidCrystal.h>
 // initialize the library with the interface pins
-LiquidCrystal lcd(7, 8, 9, 11 , 12, 13);
+// GMS uses 2 and 3 (at least)
+LiquidCrystal lcd(4,5,6,8,9,13);
 #define LCD_WIDTH 16
 #define LCD_HEIGHT 2
 #endif
 
 #define LIGHT_PIN 0
-#define TEMPERATURE_PIN 6
+#define TEMPERATURE_PIN 12
 
 /* DS18B20 Temperature chip i/o */
 OneWire  ds(TEMPERATURE_PIN);
@@ -132,17 +104,20 @@ byte addr[MAX_DS1820_SENSORS][8];
 char progMemMsg[PROGMEM_MSG_MAX_SIZE + 1];
 
 #define TEMPERATURE_CHECK_PERIOD 5000
-unsigned long lastTemperatureCheck = 0;
+unsigned long lastTemperatureCheck = millis();
 
 #define LIGHT_CHECK_PERIOD 5000
-unsigned long lastLightCheck = 0;
+unsigned long lastLightCheck = millis();
+
+#define SERIAL_STATUS_PERIOD 5000
+unsigned long lastSerialStatus = millis();
 
 #define LEVEL_CHECK_PERIOD 5000
-unsigned long lastLevelCheck = 0;
+unsigned long lastLevelCheck = millis();
 
 // Check for incoming sms every 30 seconds
 #define SMS_CHECK_PERIOD 30000
-unsigned long lastSmsCheck = 0;
+unsigned long lastSmsCheck = millis();
 
 // Max size of a received SMS
 #define MAX_SMS_LENGTH 30
@@ -150,9 +125,9 @@ boolean gsmEnabled = !false;
 
 boolean statusOK = true;
 
-#define LEVEL_PIN 4
+#define LEVEL_PIN 11
 
-// TODO: offer choice with DS1302
+// TODO: offer choice with DS1302 ?
 DS1307 clock; // The RTC handle to get date and time
 
 // System initialization
@@ -177,12 +152,6 @@ void setup(void) {
 
   readConfig();
   displayConfig();
-
-#if WITH_IR_SUPPORT
-  displayTransient(getProgMemMsg(INIT_IR_MSG));
-  reception_ir.enableIRIn(); // init receiver
-  delay(250);
-#endif
 
   displayTransient(getProgMemMsg(TEMP_INIT_MSG));
   if (!ds.search(addr[0])) {
@@ -232,19 +201,6 @@ void loop(void) {
   if(checkElapsedDelay(now, display.lastRefresh, display.refreshPeriod)) {
     refreshDisplay();
   }
-
-#if WITH_IR_SUPPORT
-  decode_results code;
-
-  // Check if an IR code was received
-  if (reception_ir.decode(&code)) {
-    processIRCode(code.value);
-    reception_ir.resume(); // be ready for next code
-  }
-  if(checkElapsedDelay(now, lastIrDisplay, IR_DISPLAY_TIMEOUT)) {
-    resetIRDisplay();
-  }
-#endif
 
   if(checkElapsedDelay(now, lastLightCheck, LIGHT_CHECK_PERIOD)) {
     statusOK = statusOK && checkLight();
@@ -356,13 +312,15 @@ boolean checkLight() {
   boolean lightOK = true;
   lightLevel = analogRead(LIGHT_PIN);
   sprintf(display.lightMsg, getProgMemMsg(LIGHT_MSG_FORMAT), lightLevel);
-  // If level less than threshold during light on period => not ok
+  // If light level less than threshold during light on period => not ok
   if((lightLevel < config.lightThreshold) && inLightSchedule()) {
     lightOK = false;
     displayPermanent(getProgMemMsg(LIGHT_ALERT_MSG));
   } else {
     deletePermanent(getProgMemMsg(LIGHT_ALERT_MSG));
   }
+  lightLevel = analogRead(1);
+  Serial.println(lightLevel);
   return(lightOK);
 }
 
@@ -450,7 +408,6 @@ void checkSMS() {
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_RESET_LCD))) {  // Sender wants to reset the displa
         initLCD();
       } else {
-        // Don't send an SMS back, waste no more time.
         displayTransient(getProgMemMsg(UNKNOWN_MSG));
       }
     }
@@ -624,6 +581,7 @@ void sendAlert() {
     // If phone number initialized AND subscribed to the alert service
     if((config.registeredNumbers[i].number[0] != 0) && (0 != (config.registeredNumbers[i].permissionFlags & FLAG_SERVICE_ALERT)) ) {
       // If enough time since last alert SMS was sent to this number, send a new one
+
       if(checkElapsedDelay(now, config.registeredNumbers[i].lastAlertSmsTime, config.registeredNumbers[i].minAlertInterval)) {
         sprintf(txtMsg, "ALERT %s %s %s", display.temperatureMsg, display.lightMsg, display.levelMsg);
         txtMsg[50] = 0; // just in case
@@ -661,67 +619,6 @@ void sendSMS(char *toNumber, char *message) {
     displayTransient(getProgMemMsg(SMS_SENT_MSG));
   }
 }
-
-#if WITH_IR_SUPPORT
-
-// Check if an IR code was received and process it according to its value
-void processIRCode(unsigned long code) {
-  char msgBuf[70];
-  if((irCode == IR_REPEAT_CODE) && (0 != previousCode)) {
-    irCode = previousCode;
-  }
-  previousCode = irCode;
-  lastIrDisplay = millis();
-  Serial.println(irCode, HEX);
-  //print(14, 0, "ir");
-  switch(irCode) {
-    case IR_DISPLAY_PHONE_NUMBER:
-      // TOTO loop over config
-    break;
-    case IR_INCR_LIGHT_THRESHOLD:
-      config.lightThreshold ++;
-      sprintf(display.transient, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
-      displayTransient(msgBuf);
-    break;
-    case IR_DECR_LIGHT_THRESHOLD:
-      config.lightThreshold --;
-      sprintf(msgBuf, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
-      displayTransient(msgBuf);
-    break;
-
-    case IR_INCR_TEMP_ADJUSTMENT:
-      config.temperatureAdjustment ++;
-      sprintf(msgBuf, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
-      displayTransient(msgBuf);
-    break;
-    case IR_DECR_TEMP_ADJUSTMENT:
-      config.temperatureAdjustment --;
-      sprintf(msgBuf, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
-      displayTransient(msgBuf);
-    break;
-
-    case IR_DISPLAY_THRESHOLDS:
-      sprintf(msgBuf, getProgMemMsg(TEMPERATURE_THRESHOLD_MSG_FORMAT), config.temperatureLowThreshold, config.temperatureHighThreshold);
-      sprintf(msgBuf, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
-      displayTransient(msgBuf);
-    break;
-
-    case IR_DISPLAY_TEMP_ADJUST:
-      sprintf(msgBuf, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
-      displayTransient(msgBuf);
-    break;
-
-    case IR_SAVE_TO_EEPROM:
-      saveConfig("");
-    break;
-    case IR_LOG_CONFIG:
-      displayConfig();
-    break;
-    default:
-      displayTransient("?");
-  }
-}
-#endif
 
 // Log config to Serial console
 void displayConfig() {
@@ -809,14 +706,16 @@ void sendSubs(char *toNumber) {
     sendSMS(toNumber, getProgMemMsg(ACCESS_DENIED_MSG));
     return;
   }
-  displayConfig(); // Display through serial
+  //displayConfig(); // Display through serial
 
   if(gsmEnabled) {
     sms.beginSMS(toNumber);
     for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
       if(config.registeredNumbers[i].number[0] != 0) {
-        sprintf(message, "%s %2X %d", config.registeredNumbers[i].number,
-         config.registeredNumbers[i].permissionFlags, config.registeredNumbers[i].minAlertInterval / 1000);
+        sprintf(message, "%s %2X %d %d", config.registeredNumbers[i].number,
+         config.registeredNumbers[i].permissionFlags, config.registeredNumbers[i].minAlertInterval / 1000, 
+         config.registeredNumbers[i].lastAlertSmsTime / 1000
+         );
         sms.print(message);
       }
     }
@@ -863,6 +762,7 @@ void readConfig() {
     resetSub();
     // Should we automatically save ? or wait for a save request ?
     saveConfig("");
+    setupClock();
   }
 }
 
@@ -898,13 +798,17 @@ void refreshDisplay() {
   char scrolledMessage[100];
   char transferChar;
   int remaining;
+  unsigned long now = millis();
 
   display.lastRefresh = millis();
-  /*
-  Serial.println(display.temperatureMsg);
-  Serial.println(display.lightMsg);
-  Serial.println(display.levelMsg);
-  */
+  if(checkElapsedDelay(now, lastSerialStatus, SERIAL_STATUS_PERIOD)) {
+    Serial.print(display.temperatureMsg);
+    Serial.print(" ");
+    Serial.print(display.lightMsg);
+    Serial.print(" ");
+    Serial.println(display.levelMsg);
+    lastSerialStatus = now;
+  }
 
   sprintf(message, "%s, %s, %s, ", display.temperatureMsg, display.lightMsg, display.levelMsg);
   remaining = strlen(message) - display.offset;
@@ -934,6 +838,7 @@ void displayTransient(char *msg) {
   lcd.print(msg);
   display.transientStartDisplayTime = millis();
   #endif
+  Serial.println(msg);
 }
 
 void displayPermanent(char *msg) {
@@ -941,13 +846,17 @@ void displayPermanent(char *msg) {
     strncpy(display.permanent, msg, 16);
     display.permanent[16] = 0;
   }
+#if WITH_LCD_SUPPORT
   lcd.setCursor(0,1);
   lcd.print(display.permanent);
+#endif
 }
 
 void deletePermanent(char *msg) {
   if(0 == strncmp(display.permanent, msg, 16))  {
+#if WITH_LCD_SUPPORT
     lcd.clear();
+#endif
     display.permanent[0] = 0;
   }
 }
@@ -957,4 +866,45 @@ void initLCD() {
   lcd.begin(LCD_WIDTH, LCD_HEIGHT,1);
   lcd.clear();
 #endif
+}
+
+void setupClock()
+{
+  int hour, min, sec, day, month, year;
+  char monthStr[5];
+
+  sscanf(__DATE__, "%s %d %d", monthStr, &day, &year);
+  sscanf(__TIME__, "%d:%d:%d", &hour, &min, &sec);
+  clock.getTime();
+  if(strncmp(monthStr, "Jan", 3) == 0)
+    month = 1;
+  if(strncmp(monthStr, "Feb", 3) == 0)
+    month = 2;
+  if(strncmp(monthStr, "Mar", 3) == 0)
+    month = 3;
+  if(strncmp(monthStr, "Apr", 3) == 0)
+    month = 4;
+  if(strncmp(monthStr, "May", 3) == 0)
+    month = 5;
+  if(strncmp(monthStr, "Jun", 3) == 0)
+    month = 6;
+  if(strncmp(monthStr, "Jul", 3) == 0)
+    month = 7;
+  if(strncmp(monthStr, "Aug", 3) == 0)
+    month = 8;
+  if(strncmp(monthStr, "Sep", 3) == 0)
+    month = 9;
+  if(strncmp(monthStr, "Oct", 3) == 0)
+    month = 10;
+  if(strncmp(monthStr, "Nov", 3) == 0)
+    month = 11;
+  if(strncmp(monthStr, "Dec", 3) == 0)
+    month = 12;
+  // Run this only once
+  Serial.println("Setting time");
+  Serial.println(__DATE__);
+  Serial.println(__TIME__);
+  clock.fillByYMD(year, month, day);
+  clock.fillByHMS(hour, min, sec + 8);  // +8 for linking/uploading offset ;) Very experimental :)
+  clock.setTime();
 }

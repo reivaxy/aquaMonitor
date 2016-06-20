@@ -58,7 +58,7 @@ const char newConfigMsg[] PROGMEM = {"New config"};
 #define NEW_CONFIG_MSG 26
 const char accessDeniedMsg[] PROGMEM = {"Access denied"};
 #define ACCESS_DENIED_MSG 27
-const char unknownMsg[] PROGMEM = {"Unknown message"};
+const char unknownMsg[] PROGMEM = {"What ???"};
 #define UNKNOWN_MSG 28
 const char buildMsg[] PROGMEM = {"aquaMonitor "__DATE__ " " __TIME__};
 #define BUILD_MSG 29
