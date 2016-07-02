@@ -9,6 +9,10 @@ Here is the schematic:
 
 <img src="https://github.com/reivaxy/aquaMonitor/blob/master/hardware/aquaMonitor.png" width="400px"/>
 
+The PCB:
+
+<img src="https://raw.githubusercontent.com/reivaxy/aquaMonitor/master/hardware/pcb0.png" width="400px"/>
+
 Here is the sensor bracket body design:
 
 <img  src="http://adgjm.eu/img/github/aquamonitorBracket.png" width="400px"/>
@@ -29,6 +33,7 @@ And, finally:
 
 <img src="http://adgjm.eu/img/github/sensorBracket1-1024.jpg" width="400px"/>
 
+<img src="http://adgjm.eu/img/github/finished.jpg" width="400px"/>
 
 # License
 
