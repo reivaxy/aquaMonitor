@@ -37,7 +37,7 @@ struct phoneConfig {
 
 // Change this version to reset the EEPROM saved configuration and/or to init date and time
 // when the structure changes
-#define CONFIG_VERSION 7
+#define CONFIG_VERSION 4
 #define CONFIG_ADDRESS 16        // Do not use adress 0, it is not reliable.
 struct eepromConfig {
   unsigned int version;          // Version for this config structure and default values. Always keep as first structure member 
@@ -319,8 +319,6 @@ boolean checkLight() {
   } else {
     deletePermanent(getProgMemMsg(LIGHT_ALERT_MSG));
   }
-  lightLevel = analogRead(1);
-  Serial.println(lightLevel);
   return(lightOK);
 }
 
@@ -409,6 +407,7 @@ void checkSMS() {
         initLCD();
       } else {
         displayTransient(getProgMemMsg(UNKNOWN_MSG));
+        sendSMS(from, getProgMemMsg(UNKNOWN_MSG));
       }
     }
   }
