@@ -13,7 +13,7 @@ __asm volatile ("nop");
 
 // 'admin' phone number defined outside of open source file haha !
 // This file should contain a line in the likes of:
-// #define REMOTE_NUMBER "+12345678910", which is the international number notation
+// #define ADMIN_NUMBER "+12345678910", which is the international number notation
 #include <remoteNumber.h>
 
 // Compilation directives to enable/disable stuff like IR support
@@ -25,7 +25,7 @@ __asm volatile ("nop");
 #include "./progmemStrings.h"
 
 #define PHONE_NUMBER_LENGTH 15
-#define MAX_PHONE_NUMBERS 2
+#define MAX_PHONE_NUMBERS 4
 
 #define DEFAULT_MIN_ALERT_INTERVAL 1800000 // Half an hour
 struct phoneConfig {
@@ -37,13 +37,13 @@ struct phoneConfig {
 
 // Change this version to reset the EEPROM saved configuration and/or to init date and time
 // when the structure changes
-#define CONFIG_VERSION 4
+#define CONFIG_VERSION 10
 #define CONFIG_ADDRESS 16        // Do not use adress 0, it is not reliable.
 struct eepromConfig {
   unsigned int version;          // Version for this config structure and default values. Always keep as first structure member 
   int temperatureAdjustment;     // Signed offset to add to temperature measure to adjust it
-  int temperatureHighThreshold;  // Alert will be sent if temperature above this value (centiCelsius: 2550 is 25,50°)
-  int temperatureLowThreshold;   // Alert will be sent if temperature below this value (centiCelsius: 2400 is 24°)
+  int temperatureHighThreshold;  // Alert will be sent if temperature above this value (centiCelsius: 2550 is 25,50Â°)
+  int temperatureLowThreshold;   // Alert will be sent if temperature below this value (centiCelsius: 2400 is 24Â°)
   int lightThreshold;            // Alert will be sent if light below this value within on/off hours (see below)
   byte lightOnHour;              // Hour after which light should be above the threshold
   byte lightOnMinute;            // Minute ...
@@ -203,15 +203,15 @@ void loop(void) {
   }
 
   if(checkElapsedDelay(now, lastLightCheck, LIGHT_CHECK_PERIOD)) {
-    statusOK = statusOK && checkLight();
+    statusOK = checkLight() && statusOK;
     lastLightCheck = now;
   }
   if(checkElapsedDelay(now, lastTemperatureCheck, TEMPERATURE_CHECK_PERIOD)) {
-    statusOK = statusOK && checkTemperature();
+    statusOK = checkTemperature() && statusOK;
     lastTemperatureCheck = millis();
   }
   if(checkElapsedDelay(now, lastLevelCheck, LEVEL_CHECK_PERIOD)) {
-    statusOK = statusOK && checkLevel();
+    statusOK = checkLevel() && statusOK;
     lastLevelCheck = now;
   }
   if(checkElapsedDelay(now, lastSmsCheck, SMS_CHECK_PERIOD)) {
@@ -231,7 +231,10 @@ boolean checkElapsedDelay(unsigned long now, unsigned long lastTime, unsigned lo
   boolean result = false;
   // millis() overflows unsigned long after about 50 days => 0  but since unsigned,
   // no problem !
-  if(elapsed >= delay) {
+  if(elapsed >= delay){
+    result = true;
+  }
+  if(lastTime == 0) {
     result = true;
   }
   return result; 
@@ -345,7 +348,10 @@ void checkSMS() {
   char msgIn[MAX_SMS_LENGTH + 1];
   char c,i;
   int cptr = 0;
-  if(!gsmEnabled) return;
+  if(!gsmEnabled) {
+    Serial.println('NO GSM');
+    return;
+  }
   displayTransient(getProgMemMsg(CHECK_SMS_MSG));
   // TODO : loop to process all incoming SMS
   while (sms.available())
@@ -394,7 +400,7 @@ void checkSMS() {
         sendStatus(from);
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SUB))) {    // Sender wants to subscribe to given service
         subscribe(from, msgIn);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_UNSUB))) {   // Sender wants to unsuscrive to give service
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_UNSUB))) {   // Sender wants to unsubscribe to give service
         unsubscribe(from, msgIn);
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_RESET_SUB))) {  // Sender wants to cancel all subscriptions
         if(!checkAdmin(from)) {
@@ -405,6 +411,12 @@ void checkSMS() {
         }
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_RESET_LCD))) {  // Sender wants to reset the displa
         initLCD();
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SET_ADMIN))) {  // Sender wants to change admin phone number
+        if(!checkAdmin(from)) {
+          sendSMS(from, getProgMemMsg(ACCESS_DENIED_MSG));
+        } else {
+          setAdmin(from, msgIn);
+        }
       } else {
         displayTransient(getProgMemMsg(UNKNOWN_MSG));
         sendSMS(from, getProgMemMsg(UNKNOWN_MSG));
@@ -419,7 +431,7 @@ unsigned char getServiceFlagFromName(char *serviceName) {
 
   if(0 == strncmp(serviceName, "alert", 5)) {
     serviceFlag = FLAG_SERVICE_ALERT;
-  } else if(0 == strncmp(serviceName, "event", 5)) {
+  } else if(0 == strncmp(serviceName, "event", 5)) {  // Could be light on, off
     serviceFlag = FLAG_SERVICE_EVENT;
   }
   // More flags ?
@@ -457,6 +469,15 @@ void setLightThreshold(char *from, char *msgIn) {
   sscanf(msgIn, getProgMemMsg(IN_SMS_LIGHT_FORMAT), &threshold);
   config.lightThreshold = threshold;
   sendSMS(from, getProgMemMsg(LIGHT_THRESHOLD_SET_MSG));
+}
+
+// Admin can change the admin number
+void setAdmin(char *from, char *msgIn) {
+  char newAdmin[PHONE_NUMBER_LENGTH + 1];
+  sscanf(msgIn, getProgMemMsg(IN_SMS_SET_ADMIN_FORMAT), newAdmin); // not really safe
+  newAdmin[PHONE_NUMBER_LENGTH] = 0;  // Make sure...
+  subscribeFlag(newAdmin, FLAG_ADMIN | FLAG_SERVICE_ALERT);
+  sendSMS(from, getProgMemMsg(SET_ADMIN_DONE_MSG));
 }
 
 // Set the light threshold below which an alert will be sent
@@ -512,25 +533,11 @@ void subscribe(char *number, char *msgIn) {
   boolean done = false;
   char msgBuf[30];
   char serviceName[10];
-  boolean found = false;
-  char foundOrFree;
 
   sscanf(msgIn, getProgMemMsg(IN_SMS_SUB_FORMAT), serviceName);
-
   serviceFlag = getServiceFlagFromName(serviceName);
-  // Check if number is already in the config
-  found = findRegisteredNumber(number, &foundOrFree);
-  if(found) {
-    config.registeredNumbers[foundOrFree].permissionFlags |= serviceFlag;
-    done = true;
-  } else {
-    if(foundOrFree != -1) {
-      strncpy(config.registeredNumbers[foundOrFree].number, number, PHONE_NUMBER_LENGTH);
-      config.registeredNumbers[foundOrFree].permissionFlags = serviceFlag;
-      config.registeredNumbers[foundOrFree].lastAlertSmsTime = 0;
-      config.registeredNumbers[foundOrFree].minAlertInterval = DEFAULT_MIN_ALERT_INTERVAL;
-      done = true;
-    }
+  if(serviceFlag != 0) {
+    done = subscribeFlag(number, serviceFlag);
   }
 
   if(done) {
@@ -540,6 +547,30 @@ void subscribe(char *number, char *msgIn) {
     sprintf(msgBuf, getProgMemMsg(NUMBER_NOT_SUBSCRIBED_MSG), serviceName);
     sendSMS(number, msgBuf);
   }
+}
+
+boolean subscribeFlag(char *number, unsigned char flag) {
+  boolean done = false;
+  boolean found = false;
+  char foundOrFree;
+
+  // Check if number is already in the config
+  found = findRegisteredNumber(number, &foundOrFree);
+  if(found) {
+    // foundOrFree is offset of found number
+    config.registeredNumbers[foundOrFree].permissionFlags |= flag;
+    done = true;
+  } else {
+    // foundOrfree is first offset free, or -1 if no more room
+    if(foundOrFree != -1) {
+      strncpy(config.registeredNumbers[foundOrFree].number, number, PHONE_NUMBER_LENGTH);
+      config.registeredNumbers[foundOrFree].permissionFlags = flag;
+      config.registeredNumbers[foundOrFree].lastAlertSmsTime = millis();
+      config.registeredNumbers[foundOrFree].minAlertInterval = DEFAULT_MIN_ALERT_INTERVAL;
+      done = true;
+    }
+  }
+  return done;
 }
 
 // Unsubscribe a user from a service
@@ -580,7 +611,6 @@ void sendAlert() {
     // If phone number initialized AND subscribed to the alert service
     if((config.registeredNumbers[i].number[0] != 0) && (0 != (config.registeredNumbers[i].permissionFlags & FLAG_SERVICE_ALERT)) ) {
       // If enough time since last alert SMS was sent to this number, send a new one
-
       if(checkElapsedDelay(now, config.registeredNumbers[i].lastAlertSmsTime, config.registeredNumbers[i].minAlertInterval)) {
         sprintf(txtMsg, "ALERT %s %s %s", display.temperatureMsg, display.lightMsg, display.levelMsg);
         txtMsg[50] = 0; // just in case
@@ -623,6 +653,7 @@ void sendSMS(char *toNumber, char *message) {
 void displayConfig() {
   unsigned char i;
   char message[50];
+  char strFlags[5];
   clock.getTime();
   sprintf(message, getProgMemMsg(CURRENT_DATE_FORMAT_MSG),
      clock.year+2000, clock.month, clock.dayOfMonth,
@@ -648,7 +679,8 @@ void displayConfig() {
       Serial.print(" ");
       Serial.print(config.registeredNumbers[i].number);
       Serial.print(" ");
-      Serial.print(config.registeredNumbers[i].permissionFlags);
+      sprintf(strFlags, "%2X", config.registeredNumbers[i].permissionFlags);
+      Serial.print(strFlags);
       Serial.print(" ");
       Serial.println(config.registeredNumbers[i].minAlertInterval);
     }
@@ -700,7 +732,7 @@ void sendConfig(char *toNumber) {
 void sendSubs(char *toNumber) {
   char i;
   char message[30];
-  char space[] = ", ";
+  unsigned long now = millis();
   if(!checkAdmin(toNumber)) {
     sendSMS(toNumber, getProgMemMsg(ACCESS_DENIED_MSG));
     return;
@@ -711,9 +743,9 @@ void sendSubs(char *toNumber) {
     sms.beginSMS(toNumber);
     for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
       if(config.registeredNumbers[i].number[0] != 0) {
-        sprintf(message, "%s %2X %d %d", config.registeredNumbers[i].number,
+        sprintf(message, "%s %2X %d %d ,", config.registeredNumbers[i].number,
          config.registeredNumbers[i].permissionFlags, config.registeredNumbers[i].minAlertInterval / 1000, 
-         config.registeredNumbers[i].lastAlertSmsTime / 1000
+         (now - config.registeredNumbers[i].lastAlertSmsTime) / 1000
          );
         sms.print(message);
       }
@@ -768,17 +800,18 @@ void readConfig() {
 // reset all subscriptions and admin number
 void resetSub() {
   char i;
-  // First one is main number, hardcoded, admin and subscribed to all services
+  unsigned long now = millis();
   for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
     if(i == 0) {
+      // admin is subscribed to all services
       config.registeredNumbers[i].permissionFlags = 0x8F;
-      strcpy(config.registeredNumbers[i].number, REMOTE_NUMBER);
+      strcpy(config.registeredNumbers[i].number, ADMIN_NUMBER);
     } else {
       config.registeredNumbers[i].permissionFlags = 0;
       config.registeredNumbers[i].number[0] = 0;
     }
-    config.registeredNumbers[i].lastAlertSmsTime = 0;
     config.registeredNumbers[i].minAlertInterval = 1800000; // Every 30 minutes = 1800 seconds
+    config.registeredNumbers[i].lastAlertSmsTime = 0;
   }
   displayConfig();
 }
@@ -907,3 +940,4 @@ void setupClock()
   clock.fillByHMS(hour, min, sec + 8);  // +8 for linking/uploading offset ;) Very experimental :)
   clock.setTime();
 }
+
