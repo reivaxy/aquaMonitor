@@ -42,8 +42,8 @@ struct phoneConfig {
 struct eepromConfig {
   unsigned int version;          // Version for this config structure and default values. Always keep as first structure member 
   int temperatureAdjustment;     // Signed offset to add to temperature measure to adjust it
-  int temperatureHighThreshold;  // Alert will be sent if temperature above this value (centiCelsius: 2550 is 25,50Â°)
-  int temperatureLowThreshold;   // Alert will be sent if temperature below this value (centiCelsius: 2400 is 24Â°)
+  int temperatureHighThreshold;  // Alert will be sent if temperature above this value (centiCelsius: 2550 is 25,50°)
+  int temperatureLowThreshold;   // Alert will be sent if temperature below this value (centiCelsius: 2400 is 24°)
   int lightThreshold;            // Alert will be sent if light below this value within on/off hours (see below)
   byte lightOnHour;              // Hour after which light should be above the threshold
   byte lightOnMinute;            // Minute ...
