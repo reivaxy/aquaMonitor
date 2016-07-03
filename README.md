@@ -39,9 +39,10 @@ Project comes with 3D files to print the triple sensor bracket (light, temperatu
 
 # TODOs
 * Setting or adjusting the clock date and time (approx...) by SMS
-* water movement detection to warn about pumps failure (sensor remains to be found...) 
+* Water movement detection to warn about pumps failure (sensor remains to be found...) 
 * Some more configuration by SMS (level detection switch state inversion for instance)
-* Send an SMS in case of main power failure.
+* Send an SMS in case of main power failure (extra wiring needed)
+* Handle a "lights off" interval with alert in case light remains ON
 
 
 # Some pictures 
