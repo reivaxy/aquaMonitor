@@ -5,9 +5,7 @@ Monitors light, temperature, and water level, and sends an SMS to a registered m
 
 All configuration handled through SMS.
 
-Optional (and partial) IR remote control configuration support.
-
-Project comes with 3D files to print the triple sensor bracket (light, temperature and adjustable water level sensor) and case.
+Project comes with 3D files to print the triple sensor bracket (light, temperature and adjustable water level sensor) and case, and PCB design for Fritzing.
 
 
 # Available features
@@ -16,9 +14,12 @@ Project comes with 3D files to print the triple sensor bracket (light, temperatu
 * Water level (high/low) detection
 * LCD display of these measures
 * Sending SMS with light, temperature and level when thresholds are reached
+* Can subscribe a new phone number to alerts by sending an SMS.
 * Adjusting the low light alarm threshold by SMS
 * Adjusting the temperature value by SMS
+* Adjusting the time interval when light should be on.
 * Save and read params (thresholds...) to EEPROM
+* Battery in case main power fails.
 * Most strings stored in PROGMEM to save variable memory space.
 * Subscribed phone numbers can set the minimum interval between 2 alerts to avoid flooding
 * Periodical checking for incoming SMS, handles messages like :
@@ -38,10 +39,10 @@ Project comes with 3D files to print the triple sensor bracket (light, temperatu
 
 # TODOs
 * Setting or adjusting the clock date and time (approx...) by SMS
-* water movement detection to warn about pumps failure (sensor remains to be found...) 
-* backuped power (and alert) in case of power failure
-* Saving periodical measure data on optional SD card (and may be info about sent and received SMS)
+* Water movement detection to warn about pumps failure (sensor remains to be found...) 
 * Some more configuration by SMS (level detection switch state inversion for instance)
+* Send an SMS in case of main power failure (extra wiring needed)
+* Handle a "lights off" interval with alert in case light remains ON
 
 
 # Some pictures 
