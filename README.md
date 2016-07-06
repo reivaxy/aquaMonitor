@@ -50,8 +50,9 @@ Project comes with 3D files to print the triple sensor bracket (light, temperatu
 <img src="http://www.adgjm.eu/img/github/aquaMonitor-1024.jpg" width="300px"/><br/>
 Prototype.
 <br/><br/>
-<img src="http://www.adgjm.eu/img/github/display.jpg" width="300px"/><br/>
-LCD display test, no sensor attached, no GSM module.
+<img src="http://adgjm.eu/img/github/finished.jpg" width="400px"/>
+Finished.
+
 
 
 #License
