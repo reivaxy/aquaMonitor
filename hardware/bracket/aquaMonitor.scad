@@ -5,14 +5,16 @@ railY = 20;
 railX = 70;
 railWall = 2;
 railSlotY = 6;
-topZ = 10;
-topX = glassX + 30;
-topY = 44;
 teeth = 3;
 sphereD = 6;
 topRecessX = 15;
 levelWireTubeDiam = 4;
 wireTubeDiam = 6;
+
+topZ = 10;
+topX = glassX + 2 * railZ + topRecessX;
+topY = 44;
+
 
 body();
 
@@ -50,6 +52,10 @@ module body() {
     rotate([0, -90, 180])
       rail();
   
+  
+  translate([0, (topY - railY)/2, topZ])
+    rotate([0, 6, 0])
+      press();
 }
 
 module temperatureSensorGuide() {
@@ -60,6 +66,21 @@ module temperatureSensorGuide() {
   translate([10, wireTubeDiam/2, -0.5])
     cylinder(d = wireTubeDiam, h = railX + 1, $fn = 50);
   }
+}
+
+module press() {
+  difference() {
+    cube([railZ, railY, railX/2]);
+    rotate([0, 5, 0]) {
+      translate([-railZ, -0.5, 0])
+        cube([railZ, railY+1, railX]);
+    }
+    translate([railZ+3, -0.5, railX/3])
+      rotate([0, -25, 0]) {
+        cube([railZ, railY+1, railX/2]);
+    }    
+  }
+
 }
 
 module rail() {
@@ -82,8 +103,8 @@ module railBody() {
           sphere(d = sphereD , $fn=50);
       }        
     }
-    translate([railWall, railWall, railWall])
-      cube([railX , railY - 2*railWall, railZ - 2*railWall]);
+    translate([railWall, railWall, railWall - 0.1])
+      cube([railX , railY - 2*railWall, railZ - 2*railWall + 0.2]);
   }
 }
 
