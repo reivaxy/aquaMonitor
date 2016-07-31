@@ -27,19 +27,37 @@ insertPawlWidth = 2.5;
  
 armHeight = 24;
 armWidth = insertBorder+1 ;
-body();
-translate([topX - topRecessX - railZ + railWall,  
-          insertWidth + (topY - railY)/2 + railWall,
-          railX - insertLength -.5]) {
-  rotate([180, -90, 0]) {
-    insert();
+
+
+// Bracket body
+//body();
+
+// Insert
+// insert();
+
+// Demo
+demo();
+
+
+
+
+// Insert positionned within bracket, for demo, not printing.
+module demo() {
+  body();
+  translate([topX - topRecessX - railZ + railWall,  
+            insertWidth + (topY - railY)/2 + railWall,
+            railX - insertLength -.5]) {
+    rotate([180, -90, 0]) {
+      insert();
+    }
   }
 }
 
-//insert();
-
 
 module insert() { 
+  extDiam = 11;
+  intDiam = 6.2;
+  
   difference() {
     cube([insertLength, insertWidth, insertHeight]);
     translate([insertBorder, insertBorder, -0.5]) {
@@ -64,12 +82,24 @@ module insert() {
   translate([0, (insertWidth - armWidth)/2, 0]) {
     cube([armWidth, armWidth, armHeight]);
   }
-  translate([0, insertWidth/2, armHeight + 10]) {
+  translate([0, insertWidth/2, armHeight + extDiam - 1]) {
     rotate([0, 90, 0]) {
       difference() {
-        cylinder(r=11, h=armWidth, $fn=50);
-        translate([0, 0, -0.5])
-          cylinder(r=6.2, h=armWidth+1, $fn=50);
+        union() {
+          cylinder(r=extDiam, h=armWidth, $fn=50);
+          translate([3-extDiam, -extDiam, 0]) {
+            cube([extDiam - 3, extDiam*2, armWidth]);
+          }
+        }
+        translate([0, 0, -0.5]) {
+          cylinder(r=intDiam, h=armWidth+1, $fn=50);
+        }
+        translate([-intDiam*2, -intDiam, -0.5]) {
+          cube([intDiam *2, intDiam*2, armWidth +1]);
+        }        
+        translate([-extDiam-3, -extDiam -0.5, -0.5]) {
+          cube([extDiam - 3, extDiam*2 + 1, armWidth +1]);
+        }        
       }
     }
   }
