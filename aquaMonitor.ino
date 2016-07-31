@@ -37,7 +37,7 @@ struct phoneConfig {
 
 // Change this version to reset the EEPROM saved configuration and/or to init date and time
 // when the structure changes
-#define CONFIG_VERSION 10
+#define CONFIG_VERSION 8
 #define CONFIG_ADDRESS 16        // Do not use adress 0, it is not reliable.
 struct eepromConfig {
   unsigned int version;          // Version for this config structure and default values. Always keep as first structure member 
@@ -121,7 +121,7 @@ unsigned long lastSmsCheck = millis();
 
 // Max size of a received SMS
 #define MAX_SMS_LENGTH 30
-boolean gsmEnabled = !false;
+boolean gsmEnabled = true;
 
 boolean statusOK = true;
 
@@ -142,13 +142,18 @@ void setup(void) {
   // TODO : this should be removed some day
   EEPROM.setMaxAllowedWrites(100);
 
-  // Initialise RTC
-  clock.begin();
-
   initLCD();
 
   displayTransient(getProgMemMsg(INIT_AQUAMON_MSG));
   Serial.println(getProgMemMsg(BUILD_MSG));
+
+  // Initialise RTC
+  clock.begin();
+
+  clock.getTime();
+  if(clock.year == 0) {
+    setupClock();
+  }
 
   readConfig();
   displayConfig();
@@ -159,28 +164,18 @@ void setup(void) {
     ds.reset_search();
     delay(250);
   }
-  // Delay for GSM init TODO : try removing this (power issues solved)
   if(gsmEnabled) {
-    delay(7000);
-  }
-  // GSM connection state
-  boolean notConnected = true && gsmEnabled;
-
-  // Start GSM shield
-  displayTransient(getProgMemMsg(INIT_GSM_MSG));
-  while(notConnected) {
+    delay(1000);
+    // Start GSM shield
+    displayTransient(getProgMemMsg(INIT_GSM_MSG));
     displayTransient(getProgMemMsg(CONNECTING_GSM_MSG));
     if(gsmAccess.begin(PINNUMBER)==GSM_READY) {
       displayTransient(getProgMemMsg(CONNECTED_GSM_MSG));
-      notConnected = false;
     } else {
       displayTransient(getProgMemMsg(NOT_CONNECTED_GSM_MSG));
-      delay(200);
+      delay(20000);
     }
   }
-  delay(500);
-  // Not working... TODO investigate. Delay ?
-  // sendSMS(config.registeredNumbers[0].number, getProgMemMsg(BUILD_MSG));
 #if WITH_LCD_SUPPORT
   lcd.clear();
 #endif
@@ -402,21 +397,23 @@ void checkSMS() {
         subscribe(from, msgIn);
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_UNSUB))) {   // Sender wants to unsubscribe to give service
         unsubscribe(from, msgIn);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_RESET_SUB))) {  // Sender wants to cancel all subscriptions
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_RESET_SUB))) {  // Admin Sender wants to cancel all subscriptions
         if(!checkAdmin(from)) {
           sendSMS(from, getProgMemMsg(ACCESS_DENIED_MSG));
         } else {
           resetSub();
           sendSMS(from, getProgMemMsg(RESET_SUB_DONE_MSG));
         }
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_RESET_LCD))) {  // Sender wants to reset the displa
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_RESET_LCD))) {  // Sender wants to reset the display
         initLCD();
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SET_ADMIN))) {  // Sender wants to change admin phone number
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SET_ADMIN))) {  // Admin Sender wants to set another admin phone number
         if(!checkAdmin(from)) {
           sendSMS(from, getProgMemMsg(ACCESS_DENIED_MSG));
         } else {
           setAdmin(from, msgIn);
         }
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SET_TIME))) {  // Sender wants to set date and time 
+        setTime(from, msgIn);
       } else {
         displayTransient(getProgMemMsg(UNKNOWN_MSG));
         sendSMS(from, getProgMemMsg(UNKNOWN_MSG));
@@ -478,6 +475,23 @@ void setAdmin(char *from, char *msgIn) {
   newAdmin[PHONE_NUMBER_LENGTH] = 0;  // Make sure...
   subscribeFlag(newAdmin, FLAG_ADMIN | FLAG_SERVICE_ALERT);
   sendSMS(from, getProgMemMsg(SET_ADMIN_DONE_MSG));
+}
+
+// Set date 
+void setTime(char *from, char *msgIn) {
+  // if incoming message is more than just "time", it's a set time message with arguments
+    Serial.println(msgIn);
+  if(strlen(msgIn) > strlen(getProgMemMsg(IN_SMS_SET_TIME) + 5)) {
+    int day, month, year, hour, minute;
+    sscanf(msgIn, getProgMemMsg(IN_SMS_SET_TIME_FORMAT), &year, &month, &day, &hour, &minute); // not really safe
+    clock.fillByYMD(year, month, day);
+    clock.fillByHMS(hour, minute, 30 );  // won't be very accurate because of SMS delays and reading period 
+    clock.setTime();
+    sendSMS(from, getProgMemMsg(SET_TIME_DONE_MSG));
+  } else {
+    sendSMS(from, getProgMemMsg(UNKNOWN_MSG));
+  }
+
 }
 
 // Set the light threshold below which an alert will be sent
@@ -793,7 +807,6 @@ void readConfig() {
     resetSub();
     // Should we automatically save ? or wait for a save request ?
     saveConfig("");
-    setupClock();
   }
 }
 

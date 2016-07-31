@@ -16,7 +16,7 @@ const char connectingGSMMsg[] PROGMEM = {"GSM Connecting"};
 #define CONNECTING_GSM_MSG 5
 const char connectedGSMMsg[] PROGMEM = {"GSM Connected"};
 #define CONNECTED_GSM_MSG 6
-const char notConnectedGSMMsg[] PROGMEM = {"Not connected"};
+const char notConnectedGSMMsg[] PROGMEM = {"Check GSM PIN"};
 #define NOT_CONNECTED_GSM_MSG 7
 const char crcNotValidMsg[] PROGMEM = {"CRC is not valid"};
 #define CRC_NOT_VALID_MSG 8
@@ -66,78 +66,84 @@ const char resetSubDoneMsg[] PROGMEM = {"Reset sub. done (save ?)"};
 #define RESET_SUB_DONE_MSG 30
 const char setAdminDoneMsg[] PROGMEM = {"Admin set (save ?)"};
 #define SET_ADMIN_DONE_MSG 31
-const char lightScheduleMsgFormat[] PROGMEM = {"Light schedule %3d:%02d - %02d:%02d"};
-#define LIGHT_SCHEDULE_MSG_FORMAT 32
+const char setTimeDoneMsg[] PROGMEM = {"Time set"};
+#define SET_TIME_DONE_MSG 32
+const char lightScheduleMsgFormat[] PROGMEM = {"Light schedule %02d:%02d - %02d:%02d"};
+#define LIGHT_SCHEDULE_MSG_FORMAT 33
 const char temperatureAdjustmentSetMsg[] PROGMEM = {"Temp adjustment set (save ?)"};
-#define TEMPERATURE_ADJUSTMENT_SET_MSG 33
+#define TEMPERATURE_ADJUSTMENT_SET_MSG 34
 const char temperatureThresholdsSetMsg[] PROGMEM = {"Temp thresholds set (save ?)"};
-#define TEMPERATURE_THRESHOLDS_SET_MSG 34
+#define TEMPERATURE_THRESHOLDS_SET_MSG 35
 const char lightThresholdSetMsg[] PROGMEM = {"Light threshold set (save ?)"};
-#define LIGHT_THRESHOLD_SET_MSG 35
+#define LIGHT_THRESHOLD_SET_MSG 36
 const char intervalSetMsg[] PROGMEM = {"Interval set (save ?)"};
-#define INTERVAL_SET_MSG 36
+#define INTERVAL_SET_MSG 37
 const char unknownNumberMsg[] PROGMEM = {"Unknown number"};
-#define UNKNOWN_NUMBER_MSG 37
-const char currentDateFormatMsg[] PROGMEM = {"Date: %3d/%02d/%02d %02d:%02d"};
-#define CURRENT_DATE_FORMAT_MSG 38
+#define UNKNOWN_NUMBER_MSG 38
+const char currentDateFormatMsg[] PROGMEM = {"Date: %4d/%02d/%02d %02d:%02d"};
+#define CURRENT_DATE_FORMAT_MSG 39
 const char lightScheduleSetMsg[] PROGMEM = {"Light schedule set (save ?)"};
-#define LIGHT_SCHEDULE_SET_MSG 39
+#define LIGHT_SCHEDULE_SET_MSG 40
 const char temperatureAlertMsg[] PROGMEM = {"Temp Alert"};
-#define TEMPERATURE_ALERT_MSG 40
+#define TEMPERATURE_ALERT_MSG 41
 const char lightAlertMsg[] PROGMEM = {"Light alert"};
-#define LIGHT_ALERT_MSG 41
+#define LIGHT_ALERT_MSG 42
 const char levelAlertMsg[] PROGMEM = {"Level alert"};
-#define LEVEL_ALERT_MSG 42
+#define LEVEL_ALERT_MSG 43
 const char levelLowMsg[] PROGMEM = {"Level: low"};
-#define LEVEL_LOW_MSG 43
+#define LEVEL_LOW_MSG 44
 const char levelHighMsg[] PROGMEM = {"Level: high"};
-#define LEVEL_HIGH_MSG 44
+#define LEVEL_HIGH_MSG 45
 
 const char inSmsInterval[] PROGMEM = {"interval "};
-#define IN_SMS_INTERVAL 45
+#define IN_SMS_INTERVAL 46
 const char inSmsTempAdj[] PROGMEM = {"temp adj "};
-#define IN_SMS_TEMP_ADJ 46
+#define IN_SMS_TEMP_ADJ 47
 const char inSmsConfig[] PROGMEM = {"config"};
-#define IN_SMS_CONFIG 47
+#define IN_SMS_CONFIG 48
 const char inSmsTemp[] PROGMEM = {"temp "};
-#define IN_SMS_TEMP 48
+#define IN_SMS_TEMP 49
 const char inSmsLight[] PROGMEM = {"light "};
-#define IN_SMS_LIGHT 49
+#define IN_SMS_LIGHT 50
 const char inSmsSchedule[] PROGMEM = {"schedule "};
-#define IN_SMS_SCHEDULE 50
+#define IN_SMS_SCHEDULE 51
 const char inSmsSave[] PROGMEM = {"save"};
-#define IN_SMS_SAVE 51
+#define IN_SMS_SAVE 52
 const char inSmsStatus[] PROGMEM = {"status"};
-#define IN_SMS_STATUS 52
+#define IN_SMS_STATUS 53
 const char inSmsSub[] PROGMEM = {"sub "};
-#define IN_SMS_SUB 53
+#define IN_SMS_SUB 54
 const char inSmsUnsub[] PROGMEM = {"unsub "};
-#define IN_SMS_UNSUB 54
+#define IN_SMS_UNSUB 55
 const char inSmsResetSub[] PROGMEM = {"reset sub"};
-#define IN_SMS_RESET_SUB 55
+#define IN_SMS_RESET_SUB 56
 const char inSmsSubs[] PROGMEM = {"subs"};
-#define IN_SMS_SUBS 56
+#define IN_SMS_SUBS 57
 const char inSmsResetLCD[] PROGMEM = {"display"};
-#define IN_SMS_RESET_LCD 57
+#define IN_SMS_RESET_LCD 58
 const char inSmsSetAdmin[] PROGMEM = {"admin"};
-#define IN_SMS_SET_ADMIN 58
+#define IN_SMS_SET_ADMIN 59
+const char inSmsSetTime[] PROGMEM = {"time"};
+#define IN_SMS_SET_TIME 60
 
 const char inSmsIntervalFormat[] PROGMEM = {"interval %ld"};
-#define IN_SMS_INTERVAL_FORMAT 59
+#define IN_SMS_INTERVAL_FORMAT 61
 const char inSmsTempAdjFormat[] PROGMEM = {"temp adj %d"};
-#define IN_SMS_TEMP_ADJ_FORMAT 60
+#define IN_SMS_TEMP_ADJ_FORMAT 62
 const char inSmsTempFormat[] PROGMEM = {"temp %d %d"};
-#define IN_SMS_TEMP_FORMAT 61
+#define IN_SMS_TEMP_FORMAT 63
 const char inSmsLightFormat[] PROGMEM = {"light %d"};
-#define IN_SMS_LIGHT_FORMAT 62
+#define IN_SMS_LIGHT_FORMAT 64
 const char inSmsScheduleFormat[] PROGMEM = {"schedule %d:%d - %d:%d"};
-#define IN_SMS_SCHEDULE_FORMAT 63
+#define IN_SMS_SCHEDULE_FORMAT 65
 const char inSmsSubFormat[] PROGMEM = {"sub %s"};
-#define IN_SMS_SUB_FORMAT 64
+#define IN_SMS_SUB_FORMAT 66
 const char inSmsUnsubFormat[] PROGMEM = {"unsub %s"};
-#define IN_SMS_UNSUB_FORMAT 65
+#define IN_SMS_UNSUB_FORMAT 67
 const char inSmsSetAdminFormat[] PROGMEM = {"admin %s"};
-#define IN_SMS_SET_ADMIN_FORMAT 66
+#define IN_SMS_SET_ADMIN_FORMAT 68
+const char inSmsSetTimeFormat[] PROGMEM = {"time %5d/%02d/%02d %02d:%02d"};
+#define IN_SMS_SET_TIME_FORMAT 69
 
 const char* const messages[] PROGMEM = {
   initAquamonMsg, initIRMsg, tempInitMsg, addrErrMsg, initGSMMsg,
@@ -146,18 +152,17 @@ const char* const messages[] PROGMEM = {
   sendingSMSMsg, SMSSentMsg, lightThresholdMsgFormat, temperatureAdjustmentMsgFormat, temperatureThresholdMsgFormat,
   numberSubscribedMsg, numberNotSubscribedMsg, numberUnsubscribedMsg, numberNotUnsubscribedMsg, savingConfigMsg,
   configSavedMsg, newConfigMsg, accessDeniedMsg, unknownMsg, buildMsg,
-  resetSubDoneMsg, setAdminDoneMsg, lightScheduleMsgFormat, temperatureAdjustmentSetMsg,
+  resetSubDoneMsg, setAdminDoneMsg, setTimeDoneMsg, lightScheduleMsgFormat, temperatureAdjustmentSetMsg,
   temperatureThresholdsSetMsg, lightThresholdSetMsg,
   intervalSetMsg, unknownNumberMsg, currentDateFormatMsg, lightScheduleSetMsg, temperatureAlertMsg,
   lightAlertMsg, levelAlertMsg, levelLowMsg, levelHighMsg,
 
   inSmsInterval, inSmsTempAdj, inSmsConfig, inSmsTemp, inSmsLight,
   inSmsSchedule, inSmsSave, inSmsStatus, inSmsSub, inSmsUnsub,
-  inSmsResetSub, inSmsSubs, inSmsResetLCD, inSmsSetAdmin,
+  inSmsResetSub, inSmsSubs, inSmsResetLCD, inSmsSetAdmin, inSmsSetTime,
 
   inSmsIntervalFormat, inSmsTempAdjFormat, inSmsTempFormat, inSmsLightFormat, inSmsScheduleFormat,
-  inSmsSubFormat, inSmsUnsubFormat, inSmsSetAdminFormat
-
+  inSmsSubFormat, inSmsUnsubFormat, inSmsSetAdminFormat, inSmsSetTimeFormat
 
 
 };
