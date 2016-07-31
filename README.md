@@ -47,11 +47,13 @@ Project comes with 3D files to print the triple sensor bracket (light, temperatu
 
 # Some pictures 
 
+Prototype:<br/>
 <img src="http://www.adgjm.eu/img/github/aquaMonitor-1024.jpg" width="300px"/><br/>
-Prototype.
+
 <br/><br/>
+Finished:<br/>
 <img src="http://adgjm.eu/img/github/finished.jpg" width="400px"/>
-Finished.
+
 
 
 
