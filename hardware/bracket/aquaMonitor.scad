@@ -7,9 +7,13 @@ railWall = 2;
 railSlotY = 6;
 
 teeth = 3;
+
 teethZ = railZ - railWall;
 teethOffset = sqrt(pow(teeth, 2)/2);
-  
+
+pawlTeeth = teeth - 0.2;
+pawlTeethOffset = sqrt(pow(pawlTeeth, 2)/2);
+
 sphereD = 6;
 topRecessX = 15;
 levelWireTubeDiam = 5;
@@ -21,9 +25,9 @@ topY = 44;
 
 insertLength = 23.5;
 insertBorder = 3;
-insertWidth = railY - 2*railWall;
-insertHeight = railZ - 2*railWall;
-insertPawlWidth = 2.5;
+insertWidth = railY - 2*railWall -0.3;
+insertHeight = railZ - 2*railWall -0.6;
+insertPawlWidth = 2;
  
 armHeight = 24;
 armWidth = insertBorder+1 ;
@@ -33,10 +37,10 @@ armWidth = insertBorder+1 ;
 //body();
 
 // Insert
-// insert();
+insert();
 
 // Demo
-demo();
+//demo();
 
 
 
@@ -46,7 +50,7 @@ module demo() {
   body();
   translate([topX - topRecessX - railZ + railWall,  
             insertWidth + (topY - railY)/2 + railWall,
-            railX - insertLength -.5]) {
+            railX - insertLength -1]) {
     rotate([180, -90, 0]) {
       insert();
     }
@@ -55,8 +59,8 @@ module demo() {
 
 
 module insert() { 
-  extDiam = 11;
-  intDiam = 6.2;
+  extDiam = 9.5;
+  intDiam = 5;
   
   difference() {
     cube([insertLength, insertWidth, insertHeight]);
@@ -66,40 +70,48 @@ module insert() {
     }
   }
   // Pawl with tooth
+  pawlHeight = 2*insertHeight + 2;
   translate([0, (insertWidth - insertPawlWidth)/2, 0]) {
     pawlLength = insertLength - insertBorder - 1.2;
-    cube([pawlLength, insertPawlWidth, 2*insertHeight]);
-    translate([pawlLength - teethOffset, -teethOffset, 0]) {
-      rotate(45, [0, 0, 1]) {
-        cube([teeth , teeth, teethZ]);  
+    cube([pawlLength, insertPawlWidth, pawlHeight]);
+    translate([pawlLength - pawlTeethOffset*2, 0, 0]) {
+      linear_extrude(height = pawlHeight) {
+        polygon([[0, 0], [pawlTeethOffset, - pawlTeeth], [pawlTeethOffset*2, 0]]);
       }
     }
   }
   // Thicker border at Pawl attachement
   cube([armWidth, insertWidth, insertHeight]);
-  
-  // Vertical arm
-  translate([0, (insertWidth - armWidth)/2, 0]) {
-    cube([armWidth, armWidth, armHeight]);
-  }
-  translate([0, insertWidth/2, armHeight + extDiam - 1]) {
-    rotate([0, 90, 0]) {
-      difference() {
-        union() {
-          cylinder(r=extDiam, h=armWidth, $fn=50);
-          translate([3-extDiam, -extDiam, 0]) {
-            cube([extDiam - 3, extDiam*2, armWidth]);
+
+  // small shift 
+  translate([0, 0.5, 0]) {  
+    // Vertical arm
+    translate([0, (insertWidth - armWidth)/2, 0]) {
+      cube([armWidth, armWidth, armHeight]);
+    }
+    // open ring for level sensor 
+    translate([0, insertWidth/2, armHeight + extDiam - 1]) {
+      rotate([0, 90, 0]) {
+        difference() {
+          union() {
+            cylinder(r=extDiam, h=armWidth, $fn=50);
+            translate([3-extDiam, -extDiam, 0]) {
+              cube([extDiam - 3, extDiam*2, armWidth]);
+            }
+  //          linear_extrude(height = armWidth) {
+  //            polygon([[0, extDiam], [extDiam*3, 0], [0, -extDiam]]);
+  //          }          
           }
+          translate([0, 0, -0.5]) {
+            cylinder(r=intDiam, h=armWidth+1, $fn=50);
+          }
+          translate([-intDiam*2, -intDiam, -0.5]) {
+            cube([intDiam *2, intDiam*2, armWidth +1]);
+          }        
+          translate([-extDiam-3, -extDiam -0.5, -0.5]) {
+            cube([extDiam - 3, extDiam*2 + 1, armWidth +1]);
+          }        
         }
-        translate([0, 0, -0.5]) {
-          cylinder(r=intDiam, h=armWidth+1, $fn=50);
-        }
-        translate([-intDiam*2, -intDiam, -0.5]) {
-          cube([intDiam *2, intDiam*2, armWidth +1]);
-        }        
-        translate([-extDiam-3, -extDiam -0.5, -0.5]) {
-          cube([extDiam - 3, extDiam*2 + 1, armWidth +1]);
-        }        
       }
     }
   }
