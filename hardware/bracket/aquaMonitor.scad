@@ -1,22 +1,80 @@
 
-glassX = 11;
+glassX = 6;
 railZ = 6;
 railY = 20;
 railX = 70;
 railWall = 2;
 railSlotY = 6;
+
 teeth = 3;
+teethZ = railZ - railWall;
+teethOffset = sqrt(pow(teeth, 2)/2);
+  
 sphereD = 6;
 topRecessX = 15;
-levelWireTubeDiam = 4;
+levelWireTubeDiam = 5;
 wireTubeDiam = 6;
 
 topZ = 10;
-topX = glassX + 2 * railZ + topRecessX;
+topX = glassX + 4 + 2 * railZ + topRecessX;
 topY = 44;
 
-
+insertLength = 23.5;
+insertBorder = 3;
+insertWidth = railY - 2*railWall;
+insertHeight = railZ - 2*railWall;
+insertPawlWidth = 2.5;
+ 
+armHeight = 24;
+armWidth = insertBorder+1 ;
 body();
+translate([topX - topRecessX - railZ + railWall,  
+          insertWidth + (topY - railY)/2 + railWall,
+          railX - insertLength -.5]) {
+  rotate([180, -90, 0]) {
+    insert();
+  }
+}
+
+//insert();
+
+
+module insert() { 
+  difference() {
+    cube([insertLength, insertWidth, insertHeight]);
+    translate([insertBorder, insertBorder, -0.5]) {
+      cube([insertLength - 2*insertBorder,
+         insertWidth - 2*insertBorder, insertHeight + 1]);  
+    }
+  }
+  // Pawl with tooth
+  translate([0, (insertWidth - insertPawlWidth)/2, 0]) {
+    pawlLength = insertLength - insertBorder - 1.2;
+    cube([pawlLength, insertPawlWidth, 2*insertHeight]);
+    translate([pawlLength - teethOffset, -teethOffset, 0]) {
+      rotate(45, [0, 0, 1]) {
+        cube([teeth , teeth, teethZ]);  
+      }
+    }
+  }
+  // Thicker border at Pawl attachement
+  cube([armWidth, insertWidth, insertHeight]);
+  
+  // Vertical arm
+  translate([0, (insertWidth - armWidth)/2, 0]) {
+    cube([armWidth, armWidth, armHeight]);
+  }
+  translate([0, insertWidth/2, armHeight + 10]) {
+    rotate([0, 90, 0]) {
+      difference() {
+        cylinder(r=11, h=armWidth, $fn=50);
+        translate([0, 0, -0.5])
+          cylinder(r=6.2, h=armWidth+1, $fn=50);
+      }
+    }
+  }
+  
+}
 
 module body() { 
   difference() {
@@ -35,7 +93,7 @@ module body() {
         cylinder(d=wireTubeDiam, h=topX, $fn=50);
     // Vertical hole for light sensor
     translate([topX - wireTubeDiam + 1 , (topY - railY)/4, -topZ/2])
-      cylinder(d=wireTubeDiam, h=topZ, $fn=50);    
+      cylinder(d=wireTubeDiam+1.5, h=topZ, $fn=50);    
     
     // Horizontal hole for temperature sensor wires
     translate([-2, topY - (topY - railY)/4, topZ/2])
@@ -43,9 +101,9 @@ module body() {
         cylinder(d=wireTubeDiam, h=topX, $fn=50);
     // Vertical hole for temperature sensor
     translate([topX - wireTubeDiam + 1 , topY - (topY - railY)/4, topZ/2])
-      cylinder(d=wireTubeDiam, h=topZ, $fn=50);     
+      cylinder(d=wireTubeDiam+1, h=topZ, $fn=50);     
   }
-  translate([topX - wireTubeDiam -10, topY - (topY - railY)/4 - wireTubeDiam/2, topZ])
+  translate([topX - wireTubeDiam - 10, topY - (topY - railY)/4 - wireTubeDiam/2, topZ])
     temperatureSensorGuide();
   
   translate([topX - topRecessX - railZ, railY + (topY - railY)/2, topZ])
@@ -54,7 +112,7 @@ module body() {
   
   
   translate([0, (topY - railY)/2, topZ])
-    rotate([0, 6, 0])
+    rotate([0, 7, 0])
       press();
 }
 
@@ -62,9 +120,9 @@ module temperatureSensorGuide() {
   translate([0, wireTubeDiam/2, 0])
     cylinder(d = wireTubeDiam, h = railX, $fn = 50);
   difference() {
-    cube([8, wireTubeDiam, railX]);
-  translate([10, wireTubeDiam/2, -0.5])
-    cylinder(d = wireTubeDiam, h = railX + 1, $fn = 50);
+    cube([7, wireTubeDiam, railX]);
+    translate([9, wireTubeDiam/2, -0.5])
+      cylinder(d = wireTubeDiam, h = railX + 1, $fn = 50);
   }
 }
 
@@ -103,16 +161,13 @@ module railBody() {
           sphere(d = sphereD , $fn=50);
       }        
     }
-    translate([railWall, railWall, railWall - 0.1])
-      cube([railX , railY - 2*railWall, railZ - 2*railWall + 0.2]);
+    translate([railWall, railWall-0.3, railWall - 0.3])
+      cube([railX , railY - 2*railWall+0.6, railZ - 2*railWall + 0.6]);
   }
 }
 
 module railTeeth() {
-  teethZ = railZ - railWall;
-  teethOffset = sqrt(pow(teeth, 2)/2);
-  cube([railX , railSlotY, teethZ]);
-  
+  cube([railX , railSlotY, teethZ]); 
   for(i = [1:1:railX/(teethOffset*2)]) {
     translate([teethOffset *2* i, -teethOffset, 0])
       rotate(45, [0, 0, 1]) {
