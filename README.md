@@ -23,22 +23,24 @@ Project comes with 3D files to print the triple sensor bracket (light, temperatu
 * Most strings stored in PROGMEM to save variable memory space.
 * Subscribed phone numbers can set the minimum interval between 2 alerts to avoid flooding
 * Periodical checking for incoming SMS, handles messages like :
-  * 'status': send SMS back with current measures
-  * 'sub xxx' : subscribe to a service (alert, event)
-  * 'unsub xxx' : unsubscribe to a service (alert, event)
+  * 'admin +33xxxxxxxx' : add this phone number with admin rights
+  * 'config' : send back the config
+  * 'display': Reset the display when messy (prototype contact issue ?, investigating)
   * 'interval xxx' : No more than 1 sms per xxx seconds
   * 'light XXX' : set the low light threshold for alerts
+  * 'save': save the configuration (light schedule and level, temp range, subs, admin, ...) to EEPROM
   * 'schedule hh:ss - hh:ss' : set the time span during which light should be above threshold
-  * 'temp XXX YYY': set the low (XXX) and high (YYY) thresholds for temperature
-  * 'temp adg XXX': set the temperature adjustment signed value
+  * 'status': send SMS back with current measures
   * 'sub reset': resets all subscriptions (admin only)
-  * 'config' : send back the config
+  * 'sub xxx' : subscribe to a service (alert, event)
   * 'subs' : send back list of subscribed phone numbers (admin only)
-  * 'save': save the configuration to EEPROM
-  * 'display': Reset the display when messy (contact issue, investigating)
+  * 'temp XXX YYY': set the low (XXX) and high (YYY) thresholds for temperature
+  * 'temp adj XXX': set the temperature adjustment signed value
+  * 'time 2016/07/30 11:00' : set the date and time
+  * 'unsub xxx' : unsubscribe to a service (alert, event)
 
+  
 # TODOs
-* Setting or adjusting the clock date and time (approx...) by SMS
 * Water movement detection to warn about pumps failure (sensor remains to be found...) 
 * Some more configuration by SMS (level detection switch state inversion for instance)
 * Send an SMS in case of main power failure (extra wiring needed)
