@@ -54,9 +54,9 @@ struct eepromConfig {
 } config;
 
 struct displayData {
-  char temperatureMsg[20];
-  char lightMsg[20];
-  char levelMsg[20];
+  char temperatureMsg[21];
+  char lightMsg[21];
+  char levelMsg[21];
   unsigned char offset = 0;
   // TODO size below should somehow be LCD width, but what if LCD disabled with compilation directives ?
   char permanent[17]; // Message always displayed
@@ -182,6 +182,8 @@ void setup(void) {
 }
 
 // Returns pointer to the global string buffer holding a string read from PROGMEM
+// This is not good but I was trying to save as much memory as possible when trying
+// to make the whole thing fit on Arduino Uno.
 char * getProgMemMsg(int messageId) {
   strncpy_P(progMemMsg, (char*)pgm_read_word(&messages[messageId]), PROGMEM_MSG_MAX_SIZE);
   // Just in case
@@ -637,9 +639,9 @@ void sendAlert() {
 
 // Send an SMS with the status to the given phone number
 void sendStatus(char *toNumber) {
-  char txtMsg[51];
-  sprintf(txtMsg, "%s %s %s", display.temperatureMsg, display.lightMsg, display.levelMsg);
-  txtMsg[50] = 0; // just in case
+  char txtMsg[61];
+  sprintf(txtMsg, "%s, %s, %s.", display.temperatureMsg, display.lightMsg, display.levelMsg);
+  txtMsg[60] = 0; // just in case
   sendSMS(toNumber, txtMsg);
 }
 
@@ -647,7 +649,7 @@ void sendStatus(char *toNumber) {
 void sendSMS(char *toNumber, char *message) {
   char msg[200];
   // If message comes from progmem, it's in a global :(
-  // that will be re used a few lines below
+  // that will be re used a few lines below when calling again getProgMemMsg
   strncpy(msg, message, 199);
   msg[199] = 0;
   if(toNumber[0] == 0) return;
