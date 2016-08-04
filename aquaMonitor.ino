@@ -639,9 +639,9 @@ void sendAlert() {
 
 // Send an SMS with the status to the given phone number
 void sendStatus(char *toNumber) {
-  char txtMsg[61];
+  char txtMsg[66];
   sprintf(txtMsg, "%s, %s, %s.", display.temperatureMsg, display.lightMsg, display.levelMsg);
-  txtMsg[60] = 0; // just in case
+  txtMsg[65] = 0; // just in case
   sendSMS(toNumber, txtMsg);
 }
 
