@@ -23,6 +23,7 @@ __asm volatile ("nop");
 
 // Strings to store in progmem space to free variable space
 #include "./progmemStrings.h"
+//#include "./progmemStrings_fr.h"
 
 #define PHONE_NUMBER_LENGTH 15
 #define MAX_PHONE_NUMBERS 4
@@ -37,7 +38,7 @@ struct phoneConfig {
 
 // Change this version to reset the EEPROM saved configuration and/or to init date and time
 // when the structure changes
-#define CONFIG_VERSION 8
+#define CONFIG_VERSION 10
 #define CONFIG_ADDRESS 16        // Do not use adress 0, it is not reliable.
 struct eepromConfig {
   unsigned int version;          // Version for this config structure and default values. Always keep as first structure member 
@@ -51,15 +52,18 @@ struct eepromConfig {
   byte lightOffMinute;           // Minute ...
   int highLevelPinValue;         // Value (HIGH or LOW) on level pin when water level is ok
   phoneConfig registeredNumbers[MAX_PHONE_NUMBERS];  // Phone numbers to send alerts to, according to their subscriptions and permissions
+  int powerThreshold;            // Alert will be sent if main power input pin below this value
 } config;
 
+#define ONE_STATUS_MSG_LENGTH 20
 struct displayData {
-  char temperatureMsg[21];
-  char lightMsg[21];
-  char levelMsg[21];
+  char temperatureMsg[ONE_STATUS_MSG_LENGTH + 1];
+  char powerMsg[ONE_STATUS_MSG_LENGTH + 1];
+  char lightMsg[ONE_STATUS_MSG_LENGTH + 1];
+  char levelMsg[ONE_STATUS_MSG_LENGTH + 1];
   unsigned char offset = 0;
   // TODO size below should somehow be LCD width, but what if LCD disabled with compilation directives ?
-  char permanent[17]; // Message always displayed
+  char permanent[17]; // Message displayed permanently
   // Transient message will be displayed for short durations
   unsigned long transientStartDisplayTime=0;
   unsigned long transientDisplayDuration=2000; // 2 seconds
@@ -90,7 +94,8 @@ LiquidCrystal lcd(4,5,6,8,9,13);
 #define LCD_HEIGHT 2
 #endif
 
-#define LIGHT_PIN 0
+#define LIGHT_PIN 0         // Analog input for light sensor
+#define MAIN_POWER_PIN 1    // Analog input to monitor main power
 #define TEMPERATURE_PIN 12
 
 /* DS18B20 Temperature chip i/o */
@@ -107,20 +112,23 @@ char progMemMsg[PROGMEM_MSG_MAX_SIZE + 1];
 unsigned long lastTemperatureCheck = millis();
 
 #define LIGHT_CHECK_PERIOD 5000
-unsigned long lastLightCheck = millis();
+unsigned long lastLightCheck = lastTemperatureCheck;
 
 #define SERIAL_STATUS_PERIOD 5000
-unsigned long lastSerialStatus = millis();
+unsigned long lastSerialStatus = lastTemperatureCheck;
 
 #define LEVEL_CHECK_PERIOD 5000
-unsigned long lastLevelCheck = millis();
+unsigned long lastLevelCheck = lastTemperatureCheck;
+
+#define POWER_CHECK_PERIOD 5000
+unsigned long lastPowerCheck = lastTemperatureCheck;
 
 // Check for incoming sms every 30 seconds
 #define SMS_CHECK_PERIOD 30000
-unsigned long lastSmsCheck = millis();
+unsigned long lastSmsCheck = lastTemperatureCheck;
 
 // Max size of a received SMS
-#define MAX_SMS_LENGTH 30
+#define MAX_SMS_LENGTH 40
 boolean gsmEnabled = true;
 
 boolean statusOK = true;
@@ -210,6 +218,10 @@ void loop(void) {
   if(checkElapsedDelay(now, lastLevelCheck, LEVEL_CHECK_PERIOD)) {
     statusOK = checkLevel() && statusOK;
     lastLevelCheck = now;
+  }
+  if(checkElapsedDelay(now, lastPowerCheck, POWER_CHECK_PERIOD)) {
+    statusOK = checkPower() && statusOK;
+    lastPowerCheck = now;
   }
   if(checkElapsedDelay(now, lastSmsCheck, SMS_CHECK_PERIOD)) {
     checkSMS();
@@ -304,6 +316,23 @@ boolean checkTemperature() {
     }
   }
   return temperatureOK;
+}
+
+// Return true if main power is ok
+boolean checkPower() {
+  long powerLevel = 0;
+  boolean powerOK = true;
+  powerLevel = analogRead(MAIN_POWER_PIN);
+  // If light level less than threshold during light on period => not ok
+  if(powerLevel < config.powerThreshold) {
+    powerOK = false;
+    displayPermanent(getProgMemMsg(POWER_OFF_MSG));
+    sprintf(display.powerMsg, getProgMemMsg(POWER_OFF_MSG));
+  } else {
+    sprintf(display.powerMsg, getProgMemMsg(POWER_ON_MSG));
+    deletePermanent(getProgMemMsg(POWER_OFF_MSG));
+  }
+  return(powerOK);
 }
 
 // Return true if light is below threshold within scheduled time frame
@@ -621,15 +650,15 @@ void unsubscribe(char *number, char *msgIn) {
 void sendAlert() {
   unsigned char i, flag;
   unsigned long now = millis();  // We don't want to send too many SMS
-  char txtMsg[51];
+  char txtMsg[4*ONE_STATUS_MSG_LENGTH + 20 + 1];
 
+  sprintf(txtMsg, getProgMemMsg(ALERT_MSG_FORMAT), display.temperatureMsg, display.lightMsg, display.levelMsg, display.powerMsg);
+  txtMsg[150] = 0; // just in case
   for(i=0; i < MAX_PHONE_NUMBERS; i++) {
     // If phone number initialized AND subscribed to the alert service
     if((config.registeredNumbers[i].number[0] != 0) && (0 != (config.registeredNumbers[i].permissionFlags & FLAG_SERVICE_ALERT)) ) {
       // If enough time since last alert SMS was sent to this number, send a new one
       if(checkElapsedDelay(now, config.registeredNumbers[i].lastAlertSmsTime, config.registeredNumbers[i].minAlertInterval)) {
-        sprintf(txtMsg, "ALERT %s %s %s", display.temperatureMsg, display.lightMsg, display.levelMsg);
-        txtMsg[50] = 0; // just in case
         sendSMS(config.registeredNumbers[i].number, txtMsg);
         config.registeredNumbers[i].lastAlertSmsTime = now;
       }
@@ -639,9 +668,9 @@ void sendAlert() {
 
 // Send an SMS with the status to the given phone number
 void sendStatus(char *toNumber) {
-  char txtMsg[66];
-  sprintf(txtMsg, "%s, %s, %s.", display.temperatureMsg, display.lightMsg, display.levelMsg);
-  txtMsg[65] = 0; // just in case
+  char txtMsg[4*ONE_STATUS_MSG_LENGTH + 15 + 1];
+  sprintf(txtMsg, "%s, %s, %s, %s.", display.temperatureMsg, display.lightMsg, display.levelMsg, display.powerMsg);
+  txtMsg[4*ONE_STATUS_MSG_LENGTH + 15] = 0; // just in case
   sendSMS(toNumber, txtMsg);
 }
 
@@ -804,6 +833,7 @@ void readConfig() {
     config.lightOffHour = 20;
     config.lightOffMinute = 30;
     config.highLevelPinValue = HIGH;
+    config.powerThreshold = 50;    // Power is between 0 and 1023
 
     // Reset all subscriptions
     resetSub();
@@ -854,10 +884,12 @@ void refreshDisplay() {
     Serial.print(display.lightMsg);
     Serial.print(" ");
     Serial.println(display.levelMsg);
+    Serial.print(" ");
+    Serial.println(display.powerMsg);
     lastSerialStatus = now;
   }
 
-  sprintf(message, "%s, %s, %s, ", display.temperatureMsg, display.lightMsg, display.levelMsg);
+  sprintf(message, "%s, %s, %s, %s, ", display.temperatureMsg, display.lightMsg, display.levelMsg, display.powerMsg);
   remaining = strlen(message) - display.offset;
   strncpy(scrolledMessage, message + display.offset, 16);
   strncat(scrolledMessage, message, display.offset );
