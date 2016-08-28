@@ -23,14 +23,29 @@ __asm volatile ("nop");
 
 // Strings to store in progmem space to free variable space
 #include "./progmemStrings.h"
-//#include "./progmemStrings_fr.h"
+
+// Two light schedules will be handled: one during which lights must be on, one during which lights must be off
+// For each, min and max level will specify the ok value for the light sensor.
+// If value is not within these limits during the specified interval, alert will be sent
+struct lightSchedule {
+  byte startHour;           // Hour of the begining of the interval
+  byte startMinute;         // Minute of the begining of the interval
+  byte endHour;             // Hour of the ending of the interval
+  byte endMinute;           // Minute of the ending of the interval
+  int minAcceptableValue;   // Min value for light sensor considered ok for this schedule
+  int maxAcceptableValue;   // Max value for light sensor considered ok for this schedule
+};
+
+// If not declaring this prototype explicitly, arduino compiler will create one *before* the definition
+// of lightSchedule and issue a crappy error message
+boolean checkLightSchedule(int lightLevel, lightSchedule schedule);
 
 #define PHONE_NUMBER_LENGTH 15
 #define MAX_PHONE_NUMBERS 4
 
 #define DEFAULT_MIN_ALERT_INTERVAL 1800000 // Half an hour
 struct phoneConfig {
-  unsigned char permissionFlags;
+  byte permissionFlags;
   char number[PHONE_NUMBER_LENGTH + 1];
   unsigned long lastAlertSmsTime = 0;  // When was last time (millis()) an alert SMS sent to that number
   unsigned long minAlertInterval = DEFAULT_MIN_ALERT_INTERVAL;  // minimum interval in milliseconds between 2 alert SMS to avoir flooding
@@ -38,18 +53,15 @@ struct phoneConfig {
 
 // Change this version to reset the EEPROM saved configuration and/or to init date and time
 // when the structure changes
-#define CONFIG_VERSION 10
-#define CONFIG_ADDRESS 16        // Do not use adress 0, it is not reliable.
+#define CONFIG_VERSION 11
+#define CONFIG_ADDRESS 16        // Do not use adress 0, it is not reliable (read somewhere).
 struct eepromConfig {
   unsigned int version;          // Version for this config structure and default values. Always keep as first structure member 
   int temperatureAdjustment;     // Signed offset to add to temperature measure to adjust it
-  int temperatureHighThreshold;  // Alert will be sent if temperature above this value (centiCelsius: 2550 is 25,50°)
-  int temperatureLowThreshold;   // Alert will be sent if temperature below this value (centiCelsius: 2400 is 24°)
-  int lightThreshold;            // Alert will be sent if light below this value within on/off hours (see below)
-  byte lightOnHour;              // Hour after which light should be above the threshold
-  byte lightOnMinute;            // Minute ...
-  byte lightOffHour;             // Hour after which light below threshold won't be considered an alert
-  byte lightOffMinute;           // Minute ...
+  int temperatureHighThreshold;  // Alert will be sent if temperature above this value (centiCelsius: 2550 is 25,50Â°)
+  int temperatureLowThreshold;   // Alert will be sent if temperature below this value (centiCelsius: 2400 is 24Â°)
+  lightSchedule lightOn;         // Interval during which lights should be on
+  lightSchedule lightOff;        // Interval during which lights should be off
   int highLevelPinValue;         // Value (HIGH or LOW) on level pin when water level is ok
   phoneConfig registeredNumbers[MAX_PHONE_NUMBERS];  // Phone numbers to send alerts to, according to their subscriptions and permissions
   int powerThreshold;            // Alert will be sent if main power input pin below this value
@@ -67,7 +79,7 @@ struct displayData {
   // Transient message will be displayed for short durations
   unsigned long transientStartDisplayTime=0;
   unsigned long transientDisplayDuration=2000; // 2 seconds
-  unsigned long refreshPeriod = 400; // every 100 ms
+  unsigned long refreshPeriod = 300;
   unsigned long lastRefresh = 0;
 } display;
 
@@ -103,8 +115,8 @@ OneWire  ds(TEMPERATURE_PIN);
 #define MAX_DS1820_SENSORS 1
 byte addr[MAX_DS1820_SENSORS][8];
 
-// Okay these globals are pretty bad and still the cause of a few bugs, but the
-// small amount of variable space left me with little choice.
+// Okay these globals are pretty bad and may still be the cause of a few bugs, but the
+// small amount of variable space on UNO left me with little choice.
 #define PROGMEM_MSG_MAX_SIZE 40
 char progMemMsg[PROGMEM_MSG_MAX_SIZE + 1];
 
@@ -164,7 +176,7 @@ void setup(void) {
   }
 
   readConfig();
-  displayConfig();
+  displayConfig(false, "");
 
   displayTransient(getProgMemMsg(TEMP_INIT_MSG));
   if (!ds.search(addr[0])) {
@@ -187,6 +199,8 @@ void setup(void) {
 #if WITH_LCD_SUPPORT
   lcd.clear();
 #endif
+  // wait a couple seconds before starting surveillance, to avoid dummy temperature
+  delay(2000);
 }
 
 // Returns pointer to the global string buffer holding a string read from PROGMEM
@@ -203,10 +217,12 @@ void loop(void) {
   // RTC does not have an epoch field :(
   unsigned long now = millis();
 
+  // Display is not refreshed at each cycle but only every refreshPeriod
   if(checkElapsedDelay(now, display.lastRefresh, display.refreshPeriod)) {
     refreshDisplay();
   }
 
+  // Sensors are not checked at each cycle either.
   if(checkElapsedDelay(now, lastLightCheck, LIGHT_CHECK_PERIOD)) {
     statusOK = checkLight() && statusOK;
     lastLightCheck = now;
@@ -249,6 +265,7 @@ boolean checkElapsedDelay(unsigned long now, unsigned long lastTime, unsigned lo
   return result; 
 }
 
+// Check water level on digital input. Returns false if low
 boolean checkLevel() {
   boolean levelOK = true;
   levelOK = (config.highLevelPinValue == digitalRead(LEVEL_PIN));
@@ -320,10 +337,10 @@ boolean checkTemperature() {
 
 // Return true if main power is ok
 boolean checkPower() {
-  long powerLevel = 0;
+  int powerLevel = 0;
   boolean powerOK = true;
   powerLevel = analogRead(MAIN_POWER_PIN);
-  // If light level less than threshold during light on period => not ok
+  // If power level less than threshold => not ok
   if(powerLevel < config.powerThreshold) {
     powerOK = false;
     displayPermanent(getProgMemMsg(POWER_OFF_MSG));
@@ -335,37 +352,52 @@ boolean checkPower() {
   return(powerOK);
 }
 
-// Return true if light is below threshold within scheduled time frame
+// check if light is ok depending on current time
+boolean checkLightSchedule(int lightLevel, lightSchedule schedule) {
+  boolean result = true;
+  unsigned int startMin;
+  unsigned int endMin;
+  unsigned int nowMin;
+  unsigned int midnight = 23*60+59;
+
+  clock.getTime();
+  startMin = schedule.startHour * 60 + schedule.startMinute;
+  endMin = schedule.endHour * 60 + schedule.endMinute;
+  nowMin = clock.hour * 60 + clock.minute;
+  // if interval starts before midnight and ends after midnight (generally 'lights off' interval)
+  // then adjustements are needed
+  if(startMin > endMin) {
+    if(nowMin <= startMin) {
+      startMin = 0;
+    } else {
+      endMin = midnight;
+    }
+  }
+  // Is current time within schedule start and end ?
+  if((nowMin >= startMin) && (nowMin <= endMin)) {
+    if(lightLevel < schedule.minAcceptableValue || lightLevel > schedule.maxAcceptableValue) {
+      result = false;
+    }
+  }
+  return(result);
+}
+
+// Return true if light level is within boundaries depending on current time
 boolean checkLight() {
-  long lightLevel = 0;
+  int lightLevel = 0;
   boolean lightOK = true;
   lightLevel = analogRead(LIGHT_PIN);
   sprintf(display.lightMsg, getProgMemMsg(LIGHT_MSG_FORMAT), lightLevel);
+
+  lightOK = checkLightSchedule(lightLevel, config.lightOn) && checkLightSchedule(lightLevel, config.lightOff);
+
   // If light level less than threshold during light on period => not ok
-  if((lightLevel < config.lightThreshold) && inLightSchedule()) {
-    lightOK = false;
-    displayPermanent(getProgMemMsg(LIGHT_ALERT_MSG));
-  } else {
+  if(lightOK) {
     deletePermanent(getProgMemMsg(LIGHT_ALERT_MSG));
+  } else {
+    displayPermanent(getProgMemMsg(LIGHT_ALERT_MSG));
   }
   return(lightOK);
-}
-
-// check if now is within the schedule during which light should be on
-boolean inLightSchedule() {
-  boolean in = false;
-  unsigned long onMin;
-  unsigned long offMin;
-  unsigned long nowMin;
-
-  clock.getTime();
-  onMin = config.lightOnHour * 60 + config.lightOnMinute;
-  offMin = config.lightOffHour * 60 + config.lightOffMinute;
-  nowMin = clock.hour * 60 + clock.minute;
-  if((nowMin >= onMin) && (nowMin <= offMin)) {
-    in = true;
-  }
-  return(in);
 }
 
 // Check for incoming SMS, and processes it if any
@@ -413,12 +445,14 @@ void checkSMS() {
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SUBS))) {   // Sender wants to receive subscription information
         sendSubs(from);
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_CONFIG))) {   // Sender wants to receive configuration
-        sendConfig(from);
+        displayConfig(true, from);
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_ABOUT))) {   // Sender wants to receive 'about' information
+        sendAbout(from);
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_TEMP))) {   // Sender wants to set temperture thresholds
         setTemperatureThresholds(from, msgIn);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_LIGHT))) {  // Sender wants to set light threshold
-        setLightThreshold(from, msgIn);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SCHEDULE))) {  // Sender wants to set light schedule
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_LIGHT_THRESHOLD))) {  // Sender wants to set light threshold
+        setLightThresholds(from, msgIn);
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_LIGHT_SCHEDULE))) {  // Sender wants to set light schedule
         setLightSchedule(from, msgIn);
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SAVE))) {    // Sender wants config to be saved to EEPROM
         saveConfig(from);
@@ -454,8 +488,8 @@ void checkSMS() {
 }
 
 // Return the flag for a given service name
-unsigned char getServiceFlagFromName(char *serviceName) {
-  unsigned char serviceFlag = 0;
+byte getServiceFlagFromName(char *serviceName) {
+  byte serviceFlag = 0;
 
   if(0 == strncmp(serviceName, "alert", 5)) {
     serviceFlag = FLAG_SERVICE_ALERT;
@@ -492,11 +526,54 @@ boolean findRegisteredNumber(char *number, char *foundOrFree) {
 }
 
 // Set the light threshold below which an alert will be sent
-void setLightThreshold(char *from, char *msgIn) {
-  int threshold;
-  sscanf(msgIn, getProgMemMsg(IN_SMS_LIGHT_FORMAT), &threshold);
-  config.lightThreshold = threshold;
-  sendSMS(from, getProgMemMsg(LIGHT_THRESHOLD_SET_MSG));
+void setLightThresholds(char *from, char *msgIn) {
+  int min, max;
+  char onOff[5];
+  boolean valid = false;
+  sscanf(msgIn, getProgMemMsg(IN_SMS_LIGHT_THRESHOLD_FORMAT), onOff, &min, &max);
+  onOff[4] = 0; // just in case. Probably too late anyway :)
+  if(strncmp(onOff, "on", 2) == 0) {
+    config.lightOn.minAcceptableValue = min;
+    config.lightOn.maxAcceptableValue = max;
+    valid = true;
+  }
+  if(strncmp(onOff, "off", 3) == 0) {
+    config.lightOff.minAcceptableValue = min;
+    config.lightOff.maxAcceptableValue = max;
+    valid = true;
+  }
+  if(valid) {
+    sendSMS(from, getProgMemMsg(LIGHT_THRESHOLD_SET_MSG));
+  } else {
+    sendSMS(from, getProgMemMsg(UNKNOWN_MSG));
+  }
+}
+
+// Set the light threshold below which an alert will be sent
+void setLightSchedule(char *from, char *msgIn) {
+  unsigned int startHour, startMinute, endHour, endMinute;
+  lightSchedule *schedule; 
+  char onOff[5];
+  boolean valid = false;
+  sscanf(msgIn, getProgMemMsg(IN_SMS_LIGHT_SCHEDULE_FORMAT), onOff, &startHour, &startMinute, &endHour, &endMinute);
+  onOff[4] = 0; // just in case. Probably too late anyway :)
+  if(strncmp(onOff, "on", 2) == 0) {
+    schedule = &config.lightOn;
+    valid = true;
+  }
+  if(strncmp(onOff, "off", 3) == 0) {
+    schedule = &config.lightOff;
+    valid = true;
+  }
+  if(valid) {
+    schedule->startHour = (byte)startHour;
+    schedule->startMinute = (byte)startMinute;
+    schedule->endHour = (byte)endHour;
+    schedule->endMinute = (byte)endMinute;
+    sendSMS(from, getProgMemMsg(LIGHT_SCHEDULE_SET_MSG));
+  } else {
+    sendSMS(from, getProgMemMsg(UNKNOWN_MSG));
+  }
 }
 
 // Admin can change the admin number
@@ -525,17 +602,6 @@ void setTime(char *from, char *msgIn) {
 
 }
 
-// Set the light threshold below which an alert will be sent
-void setLightSchedule(char *from, char *msgIn) {
-  unsigned int hourOn, minuteOn, hourOff, minuteOff;
-  sscanf(msgIn, getProgMemMsg(IN_SMS_SCHEDULE_FORMAT), &hourOn, &minuteOn, &hourOff, &minuteOff);
-  config.lightOnHour = (byte)hourOn;
-  config.lightOnMinute = (byte)minuteOn;
-  config.lightOffHour = (byte)hourOff;
-  config.lightOffMinute = (byte)minuteOff;
-  sendSMS(from, getProgMemMsg(LIGHT_SCHEDULE_SET_MSG));
-}
-
 // Set the minimum alert interval to not flood a number with alert SMS
 void setAlertInterval(char *from, char *msgIn) {
   unsigned long interval;
@@ -547,7 +613,6 @@ void setAlertInterval(char *from, char *msgIn) {
     Serial.println(interval);
     config.registeredNumbers[offset].minAlertInterval = interval * 1000UL;   // Given in seconds, stored in milliseconds
     Serial.println(getProgMemMsg(INTERVAL_SET_MSG));
-    displayConfig();
     sendSMS(from, getProgMemMsg(INTERVAL_SET_MSG));
   } else {
     Serial.println(getProgMemMsg(UNKNOWN_NUMBER_MSG));
@@ -573,7 +638,7 @@ void setTemperatureAdjustment(char *from, char *msgIn) {
 
 // Subscribe a number to a service
 void subscribe(char *number, char *msgIn) {
-  unsigned char serviceFlag;
+  byte serviceFlag;
   unsigned char i, firstFree = MAX_PHONE_NUMBERS;
   boolean done = false;
   char msgBuf[30];
@@ -594,7 +659,7 @@ void subscribe(char *number, char *msgIn) {
   }
 }
 
-boolean subscribeFlag(char *number, unsigned char flag) {
+boolean subscribeFlag(char *number, byte flag) {
   boolean done = false;
   boolean found = false;
   char foundOrFree;
@@ -620,7 +685,7 @@ boolean subscribeFlag(char *number, unsigned char flag) {
 
 // Unsubscribe a user from a service
 void unsubscribe(char *number, char *msgIn) {
-  unsigned char serviceFlag;
+  byte serviceFlag;
   unsigned char i;
   char msgBuf[30];
   char serviceName[10];
@@ -650,10 +715,10 @@ void unsubscribe(char *number, char *msgIn) {
 void sendAlert() {
   unsigned char i, flag;
   unsigned long now = millis();  // We don't want to send too many SMS
-  char txtMsg[4*ONE_STATUS_MSG_LENGTH + 20 + 1];
+  char txtMsg[160 + 1];
 
-  sprintf(txtMsg, getProgMemMsg(ALERT_MSG_FORMAT), display.temperatureMsg, display.lightMsg, display.levelMsg, display.powerMsg);
-  txtMsg[150] = 0; // just in case
+  sprintf(txtMsg, getProgMemMsg(ALERT_MSG_FORMAT), display.permanent, display.temperatureMsg, display.lightMsg, display.levelMsg, display.powerMsg);
+  txtMsg[160] = 0; // just in case
   for(i=0; i < MAX_PHONE_NUMBERS; i++) {
     // If phone number initialized AND subscribed to the alert service
     if((config.registeredNumbers[i].number[0] != 0) && (0 != (config.registeredNumbers[i].permissionFlags & FLAG_SERVICE_ALERT)) ) {
@@ -668,9 +733,13 @@ void sendAlert() {
 
 // Send an SMS with the status to the given phone number
 void sendStatus(char *toNumber) {
-  char txtMsg[4*ONE_STATUS_MSG_LENGTH + 15 + 1];
-  sprintf(txtMsg, "%s, %s, %s, %s.", display.temperatureMsg, display.lightMsg, display.levelMsg, display.powerMsg);
-  txtMsg[4*ONE_STATUS_MSG_LENGTH + 15] = 0; // just in case
+  char txtMsg[5*ONE_STATUS_MSG_LENGTH + 15 + 1];
+  if(display.permanent[0] == 0) {
+    sprintf(txtMsg, "%s, %s, %s, %s.", display.temperatureMsg, display.lightMsg, display.levelMsg, display.powerMsg);
+  } else {
+    sprintf(txtMsg, "%s: %s, %s, %s, %s.", display.permanent, display.temperatureMsg, display.lightMsg, display.levelMsg, display.powerMsg);
+  }
+  txtMsg[5*ONE_STATUS_MSG_LENGTH + 15] = 0; // just in case
   sendSMS(toNumber, txtMsg);
 }
 
@@ -694,30 +763,89 @@ void sendSMS(char *toNumber, char *message) {
   }
 }
 
-// Log config to Serial console
-void displayConfig() {
+void sendAbout(char *toNumber) {
+  sendSMS(toNumber, getProgMemMsg(BUILD_MSG));
+}
+
+// Log config to Serial console, and optionally send by sms
+void displayConfig(boolean sendSMS, char *toNumber) {
   unsigned char i;
-  char message[50];
+  char message[160];
   char strFlags[5];
+  char space[] = ", ";
   clock.getTime();
+  if(!gsmEnabled) {
+    sendSMS = false;
+  }
+
+  sprintf(message, getProgMemMsg(BUILD_MSG));
+  Serial.println(message);
+  if(sendSMS) {
+    sms.beginSMS(toNumber);
+    sms.print(message);
+    sms.print(space);
+  }
+
   sprintf(message, getProgMemMsg(CURRENT_DATE_FORMAT_MSG),
      clock.year+2000, clock.month, clock.dayOfMonth,
      clock.hour, clock.minute);
   Serial.println(message);
-
-  sprintf(message, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
-  Serial.println(message);
-
-  sprintf(message, getProgMemMsg(LIGHT_SCHEDULE_MSG_FORMAT),
-                config.lightOnHour, config.lightOnMinute,
-                config.lightOffHour, config.lightOffMinute);
-  Serial.println(message);
+  if(sendSMS) {
+    sms.print(message);
+    sms.print(space);
+  }
 
   sprintf(message, getProgMemMsg(TEMPERATURE_THRESHOLD_MSG_FORMAT), config.temperatureLowThreshold, config.temperatureHighThreshold);
   Serial.println(message);
+  if(sendSMS) {
+    sms.print(message);
+    sms.print(space);
+  }
   sprintf(message, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
   Serial.println(message);
+  if(sendSMS) {
+    sms.print(message);
+    sms.print(space);
+    // Message needs to be less than 160c, all won't fit
+    sms.endSMS();
+    displayTransient(getProgMemMsg(SENDING_SMS_MSG));
+  }
 
+  sprintf(message, getProgMemMsg(LIGHT_SCHEDULE_MSG_FORMAT), "on",
+                config.lightOn.startHour, config.lightOn.startMinute,
+                config.lightOn.endHour, config.lightOn.endMinute);
+  Serial.println(message);
+  if(sendSMS) {
+    // new sms for light config
+    sms.beginSMS(toNumber);
+    sms.print(message);
+    sms.print(space);
+  }
+  sprintf(message, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), "on", config.lightOn.minAcceptableValue, config.lightOn.maxAcceptableValue);
+  Serial.println(message);
+  if(sendSMS) {
+    sms.print(message);
+    sms.print(space);
+  }
+
+  sprintf(message, getProgMemMsg(LIGHT_SCHEDULE_MSG_FORMAT), "off",
+                config.lightOff.startHour, config.lightOff.startMinute,
+                config.lightOff.endHour, config.lightOff.endMinute);
+  Serial.println(message);
+  if(sendSMS) {
+    sms.print(message);
+    sms.print(space);
+  }
+  sprintf(message, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), "off", config.lightOff.minAcceptableValue, config.lightOff.maxAcceptableValue);
+  Serial.println(message);
+  if(sendSMS) {
+    sms.print(message);
+    sms.print(space);
+    sms.endSMS();
+    displayTransient(getProgMemMsg(SENDING_SMS_MSG));
+  }
+
+  // This part not sent in config SMS (available in reply to 'subs' sms)
   for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
     if(config.registeredNumbers[i].number[0] != 0) {
       Serial.print(i);
@@ -732,47 +860,6 @@ void displayConfig() {
   }
 }
 
-
-// Send SMS with all configuration. Only if requesting number has the 'admin' flag set in config
-void sendConfig(char *toNumber) {
-  char message[40];
-  char space[] = ", ";
-
-  displayConfig(); // Display through serial
-  if(gsmEnabled) {
-
-    sms.beginSMS(toNumber);
-    sprintf(message, getProgMemMsg(BUILD_MSG));
-    sms.print(message);
-    sms.print(space);
-
-    clock.getTime();
-    sprintf(message, getProgMemMsg(CURRENT_DATE_FORMAT_MSG),
-       clock.year+2000, clock.month, clock.dayOfMonth,
-       clock.hour, clock.minute);
-    sms.print(message);
-    sms.print(space);
-
-    sprintf(message, getProgMemMsg(LIGHT_THRESHOLD_MSG_FORMAT), config.lightThreshold);
-    sms.print(message);
-    sms.print(space);
-
-    sprintf(message, getProgMemMsg(LIGHT_SCHEDULE_MSG_FORMAT),
-                  config.lightOnHour, config.lightOnMinute,
-                  config.lightOffHour, config.lightOffMinute);
-    sms.print(message);
-    sms.print(space);
-
-    sprintf(message, getProgMemMsg(TEMPERATURE_THRESHOLD_MSG_FORMAT), config.temperatureLowThreshold, config.temperatureHighThreshold);
-    sms.print(message);
-    sms.print(space);
-    sprintf(message, getProgMemMsg(TEMPERATURE_ADJUSTMENT_MSG_FORMAT), config.temperatureAdjustment);
-    sms.print(message);
-    // Message needs to be less than 160c
-    sms.endSMS();
-  }
-}
-
 // Send a message listing all subscriptions
 void sendSubs(char *toNumber) {
   char i;
@@ -782,7 +869,6 @@ void sendSubs(char *toNumber) {
     sendSMS(toNumber, getProgMemMsg(ACCESS_DENIED_MSG));
     return;
   }
-  //displayConfig(); // Display through serial
 
   if(gsmEnabled) {
     sms.beginSMS(toNumber);
@@ -826,18 +912,30 @@ void readConfig() {
     config.version = CONFIG_VERSION;
     config.temperatureAdjustment = 0;
     config.temperatureHighThreshold = 2700;
-    config.temperatureLowThreshold = 2100;
-    config.lightThreshold = 200;
-    config.lightOnHour = 13;
-    config.lightOnMinute = 30;
-    config.lightOffHour = 20;
-    config.lightOffMinute = 30;
+    config.temperatureLowThreshold = 2400;
+
+    // default setting for light on schedule
+    config.lightOn.startHour = 13;           // Hour of the begining of light on
+    config.lightOn.startMinute = 30;         // Minute of the begining of light on
+    config.lightOn.endHour = 20;             // Hour of the ending of light on
+    config.lightOn.endMinute = 30;           // Minute of the ending of light on
+    config.lightOn.minAcceptableValue = 800;   // Min value for light sensor considered ok for light on
+    config.lightOn.maxAcceptableValue = 1024;  // Max value for light sensor considered ok for light on
+
+    // default setting for light off
+    config.lightOff.startHour = 21;           // Hour of the begining of light off
+    config.lightOff.startMinute = 00;         // Minute of the begining of light off
+    config.lightOff.endHour = 13;             // Hour of the ending of light off
+    config.lightOff.endMinute = 00;           // Minute of the ending of light off
+    config.lightOff.minAcceptableValue = 0;   // Min value for light sensor considered ok for light off
+    config.lightOff.maxAcceptableValue = 400; // Max value for light sensor considered ok for light off
+
     config.highLevelPinValue = HIGH;
     config.powerThreshold = 50;    // Power is between 0 and 1023
 
     // Reset all subscriptions
     resetSub();
-    // Should we automatically save ? or wait for a save request ?
+    // Save new config to eeprom
     saveConfig("");
   }
 }
@@ -858,7 +956,6 @@ void resetSub() {
     config.registeredNumbers[i].minAlertInterval = 1800000; // Every 30 minutes = 1800 seconds
     config.registeredNumbers[i].lastAlertSmsTime = 0;
   }
-  displayConfig();
 }
 
 // Save the configuration to EEPROM
@@ -987,4 +1084,5 @@ void setupClock()
   clock.fillByHMS(hour, min, sec + 8);  // +8 for linking/uploading offset ;) Very experimental :)
   clock.setTime();
 }
+
 

@@ -1,6 +1,6 @@
 #include <avr/pgmspace.h>
 
-// Messages and formats saved in  to save RAM
+// Messages and formats saved in pgmspace to save RAM
 const char initAquamonMsg[] PROGMEM = {"Init AquaMon"};
 #define INIT_AQUAMON_MSG 0
 const char tempInitMsg[] PROGMEM = {"DS1820 Test"};
@@ -34,11 +34,13 @@ const char sendingSMSMsg[] PROGMEM = {"Sending SMS..."};
 #define SENDING_SMS_MSG 14
 const char SMSSentMsg[] PROGMEM = {"SMS sent"};
 #define SMS_SENT_MSG 15
-const char lightThresholdMsgFormat[] PROGMEM = {"Light limit: %d"};
+
+const char lightThresholdMsgFormat[] PROGMEM = {"Light limits %s: %d-%d"};
 #define LIGHT_THRESHOLD_MSG_FORMAT 16
+
 const char temperatureAdjustmentMsgFormat[] PROGMEM = {"Temp Adj: %d"};
 #define TEMPERATURE_ADJUSTMENT_MSG_FORMAT 17
-const char temperatureThresholdMsgFormat[] PROGMEM = {"Temp : %d %d"};
+const char temperatureThresholdMsgFormat[] PROGMEM = {"Temp: %d %d"};
 #define TEMPERATURE_THRESHOLD_MSG_FORMAT 18
 const char numberSubscribedMsg[] PROGMEM = {"Sub to %s done"};
 #define NUMBER_SUBSCRIBED_MSG 19
@@ -66,8 +68,13 @@ const char setAdminDoneMsg[] PROGMEM = {"Admin set (save ?)"};
 #define SET_ADMIN_DONE_MSG 30
 const char setTimeDoneMsg[] PROGMEM = {"Time set"};
 #define SET_TIME_DONE_MSG 31
-const char lightScheduleMsgFormat[] PROGMEM = {"Light schedule %02d:%02d - %02d:%02d"};
+
+// Examples:
+// Light schedule on 13:30-20:00
+// Light schedule off 21:00-13:00
+const char lightScheduleMsgFormat[] PROGMEM = {"Light schedule %s: %02d:%02d-%02d:%02d"};
 #define LIGHT_SCHEDULE_MSG_FORMAT 32
+
 const char temperatureAdjustmentSetMsg[] PROGMEM = {"Temp adjustment set (save ?)"};
 #define TEMPERATURE_ADJUSTMENT_SET_MSG 33
 const char temperatureThresholdsSetMsg[] PROGMEM = {"Temp thresholds set (save ?)"};
@@ -97,7 +104,7 @@ const char powerOffMsg[] PROGMEM = {"POWER: off"};   // Strange: "Power off" tru
 #define POWER_OFF_MSG 45
 const char powerOnMsg[] PROGMEM = {"POWER: on"};  // http://forum.arduino.cc/index.php?topic=269661.0   
 #define POWER_ON_MSG 46
-const char alertMsgFormat[] PROGMEM = {"ALERT: %s, %s, %s, %s. "};
+const char alertMsgFormat[] PROGMEM = {"ALERT - %s: %s, %s, %s, %s. "};
 #define ALERT_MSG_FORMAT 47
 
 const char inSmsInterval[] PROGMEM = {"interval "};
@@ -106,49 +113,57 @@ const char inSmsTempAdj[] PROGMEM = {"temp adj "};
 #define IN_SMS_TEMP_ADJ 49
 const char inSmsConfig[] PROGMEM = {"config"};
 #define IN_SMS_CONFIG 50
+const char inSmsAbout[] PROGMEM = {"about"};
+#define IN_SMS_ABOUT 51
 const char inSmsTemp[] PROGMEM = {"temp "};
-#define IN_SMS_TEMP 51
-const char inSmsLight[] PROGMEM = {"light "};
-#define IN_SMS_LIGHT 52
-const char inSmsSchedule[] PROGMEM = {"schedule "};
-#define IN_SMS_SCHEDULE 53
-const char inSmsSave[] PROGMEM = {"save"};
-#define IN_SMS_SAVE 54
-const char inSmsStatus[] PROGMEM = {"status"};
-#define IN_SMS_STATUS 55
-const char inSmsSub[] PROGMEM = {"sub "};
-#define IN_SMS_SUB 56
-const char inSmsUnsub[] PROGMEM = {"unsub "};
-#define IN_SMS_UNSUB 57
-const char inSmsResetSub[] PROGMEM = {"reset sub"};
-#define IN_SMS_RESET_SUB 58
-const char inSmsSubs[] PROGMEM = {"subs"};
-#define IN_SMS_SUBS 59
-const char inSmsResetLCD[] PROGMEM = {"display"};
-#define IN_SMS_RESET_LCD 60
-const char inSmsSetAdmin[] PROGMEM = {"admin"};
-#define IN_SMS_SET_ADMIN 61
-const char inSmsSetTime[] PROGMEM = {"time"};
-#define IN_SMS_SET_TIME 62
+#define IN_SMS_TEMP 52
 
+const char inSmsLightThreshold[] PROGMEM = {"light limits "};
+#define IN_SMS_LIGHT_THRESHOLD 53
+
+const char inSmsLightSchedule[] PROGMEM = {"light schedule "};
+#define IN_SMS_LIGHT_SCHEDULE 54
+
+const char inSmsSave[] PROGMEM = {"save"};
+#define IN_SMS_SAVE 55
+const char inSmsStatus[] PROGMEM = {"status"};
+#define IN_SMS_STATUS 56
+const char inSmsSub[] PROGMEM = {"sub "};
+#define IN_SMS_SUB 57
+const char inSmsUnsub[] PROGMEM = {"unsub "};
+#define IN_SMS_UNSUB 58
+const char inSmsResetSub[] PROGMEM = {"reset sub"};
+#define IN_SMS_RESET_SUB 59
+const char inSmsSubs[] PROGMEM = {"subs"};
+#define IN_SMS_SUBS 60
+const char inSmsResetLCD[] PROGMEM = {"display"};
+#define IN_SMS_RESET_LCD 61
+const char inSmsSetAdmin[] PROGMEM = {"admin"};
+#define IN_SMS_SET_ADMIN 62
+const char inSmsSetTime[] PROGMEM = {"time"};
+#define IN_SMS_SET_TIME 63
+
+// TODO: most of these messages are redundant with the ones used to send config
+// Remove them and use the ones above...
+// Issue with the ':' when sscanfing the message, though...
 const char inSmsIntervalFormat[] PROGMEM = {"interval %ld"};
-#define IN_SMS_INTERVAL_FORMAT 63
+#define IN_SMS_INTERVAL_FORMAT 64
 const char inSmsTempAdjFormat[] PROGMEM = {"temp adj %d"};
-#define IN_SMS_TEMP_ADJ_FORMAT 64
+#define IN_SMS_TEMP_ADJ_FORMAT 65
 const char inSmsTempFormat[] PROGMEM = {"temp %d %d"};
-#define IN_SMS_TEMP_FORMAT 65
-const char inSmsLightFormat[] PROGMEM = {"light %d"};
-#define IN_SMS_LIGHT_FORMAT 66
-const char inSmsScheduleFormat[] PROGMEM = {"schedule %d:%d - %d:%d"};
-#define IN_SMS_SCHEDULE_FORMAT 67
+#define IN_SMS_TEMP_FORMAT 66
+const char inSmsLightThresholdFormat[] PROGMEM = {"light limits %s %d-%d"};
+#define IN_SMS_LIGHT_THRESHOLD_FORMAT 67
+const char inSmsLightScheduleFormat[] PROGMEM = {"light schedule %s %d:%d-%d:%d"};
+#define IN_SMS_LIGHT_SCHEDULE_FORMAT 68
 const char inSmsSubFormat[] PROGMEM = {"sub %s"};
-#define IN_SMS_SUB_FORMAT 68
+#define IN_SMS_SUB_FORMAT 69
 const char inSmsUnsubFormat[] PROGMEM = {"unsub %s"};
-#define IN_SMS_UNSUB_FORMAT 69
+#define IN_SMS_UNSUB_FORMAT 70
 const char inSmsSetAdminFormat[] PROGMEM = {"admin %s"};
-#define IN_SMS_SET_ADMIN_FORMAT 70
+#define IN_SMS_SET_ADMIN_FORMAT 71
 const char inSmsSetTimeFormat[] PROGMEM = {"time %4d/%02d/%02d %02d:%02d"};
-#define IN_SMS_SET_TIME_FORMAT 71
+#define IN_SMS_SET_TIME_FORMAT 72
 
 
 const char* const messages[] PROGMEM = {
@@ -164,15 +179,16 @@ const char* const messages[] PROGMEM = {
   lightAlertMsg, levelAlertMsg, levelLowMsg, levelHighMsg,
   powerOffMsg, powerOnMsg, alertMsgFormat,
 
-  inSmsInterval, inSmsTempAdj, inSmsConfig, inSmsTemp, inSmsLight,
-  inSmsSchedule, inSmsSave, inSmsStatus, inSmsSub, inSmsUnsub,
+  inSmsInterval, inSmsTempAdj, inSmsConfig, inSmsAbout, inSmsTemp, inSmsLightThreshold,
+  inSmsLightSchedule, inSmsSave, inSmsStatus, inSmsSub, inSmsUnsub,
   inSmsResetSub, inSmsSubs, inSmsResetLCD, inSmsSetAdmin, inSmsSetTime,
 
-  inSmsIntervalFormat, inSmsTempAdjFormat, inSmsTempFormat, inSmsLightFormat, inSmsScheduleFormat,
+  inSmsIntervalFormat, inSmsTempAdjFormat, inSmsTempFormat, inSmsLightThresholdFormat, inSmsLightScheduleFormat,
   inSmsSubFormat, inSmsUnsubFormat, inSmsSetAdminFormat, inSmsSetTimeFormat
 
 
 };
+
 
 
 
