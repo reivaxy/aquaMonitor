@@ -42,9 +42,9 @@ Project comes with 3D files to print the triple sensor bracket (light, temperatu
   
 # TODOs
 * Water movement detection to warn about pumps failure (sensor remains to be found...) 
-* Some more configuration by SMS (level detection switch state inversion for instance)
-* Send an SMS in case of main power failure (extra wiring needed)
-* Handle a "lights off" interval with alert in case light remains ON
+* Some more configuration by SMS (level detection switch state inversion for instance, or display shift frequency ?)
+* 'clear' sms to reset the interval before next alert can be sent
+* Periodical status sending (upon registration) ?
 
 
 # Some pictures 
