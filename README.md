@@ -56,8 +56,13 @@ Prototype:<br/>
 Finished:<br/>
 <img src="http://adgjm.eu/img/github/finished.jpg" width="400px"/>
 
+<br/><br/>
+Installed:<br/>
+<img src="http://adgjm.eu/img/github/installed.jpg" width="400px"/>
 
-
+<br/><br/>
+Sensors:<br/>
+<img src="http://adgjm.eu/img/github/sensors.jpg" width="400px"/>
 
 #License
 
