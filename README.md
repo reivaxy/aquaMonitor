@@ -6,7 +6,7 @@ Monitors light, temperature, and water level, and sends an SMS to a registered m
 All configuration handled through SMS.
 
 Project comes with 3D files to print the triple sensor bracket (light, temperature and adjustable water level sensor) and case, and PCB design for Fritzing.
-
+Disclaimer: This system description is provided with no warranty whatsoever. If you use it, you accept to do so at your own risks, should a bug or any event be the cause of a malfunction.
 
 # Available features
 * Temperature periodical measurement
