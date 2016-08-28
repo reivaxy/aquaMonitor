@@ -67,6 +67,7 @@ Sensors:<br/>
 
 <br/><br/>
 SMS exemples:<br/>
+SMS sent by user are yellow, replies sent by device are blue.
 <img src="http://adgjm.eu/img/github/sms.png" width="300px"/>
 
 #License
