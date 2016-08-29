@@ -48,7 +48,7 @@ struct phoneConfig {
   byte permissionFlags;
   char number[PHONE_NUMBER_LENGTH + 1];
   unsigned long lastAlertSmsTime = 0;  // When was last time (millis()) an alert SMS sent to that number
-  unsigned long minAlertInterval = DEFAULT_MIN_ALERT_INTERVAL;  // minimum interval in milliseconds between 2 alert SMS to avoir flooding
+  unsigned long minAlertInterval = DEFAULT_MIN_ALERT_INTERVAL;  // minimum interval in milliseconds between 2 alert SMS to avoid flooding
 };
 
 // Change this version to reset the EEPROM saved configuration and/or to init date and time
@@ -675,7 +675,7 @@ boolean subscribeFlag(char *number, byte flag) {
     if(foundOrFree != -1) {
       strncpy(config.registeredNumbers[foundOrFree].number, number, PHONE_NUMBER_LENGTH);
       config.registeredNumbers[foundOrFree].permissionFlags = flag;
-      config.registeredNumbers[foundOrFree].lastAlertSmsTime = millis();
+      config.registeredNumbers[foundOrFree].lastAlertSmsTime = 0;
       config.registeredNumbers[foundOrFree].minAlertInterval = DEFAULT_MIN_ALERT_INTERVAL;
       done = true;
     }
@@ -863,7 +863,7 @@ void displayConfig(boolean sendSMS, char *toNumber) {
 // Send a message listing all subscriptions
 void sendSubs(char *toNumber) {
   char i;
-  char message[30];
+  char message[40];
   unsigned long now = millis();
   if(!checkAdmin(toNumber)) {
     sendSMS(toNumber, getProgMemMsg(ACCESS_DENIED_MSG));
@@ -874,10 +874,13 @@ void sendSubs(char *toNumber) {
     sms.beginSMS(toNumber);
     for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
       if(config.registeredNumbers[i].number[0] != 0) {
-        sprintf(message, "%s %2X %d %d ,", config.registeredNumbers[i].number,
-         config.registeredNumbers[i].permissionFlags, config.registeredNumbers[i].minAlertInterval / 1000, 
-         (now - config.registeredNumbers[i].lastAlertSmsTime) / 1000
-         );
+        // I can't explain why but if I try to add a %d in the format below, the value is always 0
+        sprintf(message, "%s %02X %ds ", config.registeredNumbers[i].number,
+         config.registeredNumbers[i].permissionFlags, 
+         config.registeredNumbers[i].minAlertInterval / 1000);
+        sms.print(message);
+        // I had to split the message to make it work... :(
+        sprintf(message, "%ds ,", (now - config.registeredNumbers[i].lastAlertSmsTime) / 1000);
         sms.print(message);
       }
     }
