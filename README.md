@@ -44,7 +44,8 @@ Disclaimer: This system description is provided with no warranty whatsoever. If 
 # TODOs
 * Water movement detection to warn about pumps failure (sensor remains to be found...) 
 * Some more configuration by SMS (level detection switch state inversion for instance, or display shift frequency ?)
-* 'clear' sms to reset the interval before next alert can be sent
+* 'clear' sms to cancel the interval before next alert can be sent
+* 'reset' sms to reset the unsaved configuration changes
 * Periodical status sending (upon registration) ?
 
 
