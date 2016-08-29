@@ -47,7 +47,7 @@ boolean checkLightSchedule(int lightLevel, lightSchedule schedule);
 struct phoneConfig {
   byte permissionFlags;
   char number[PHONE_NUMBER_LENGTH + 1];
-  unsigned long lastAlertSmsTime = 0;  // When was last time (millis()) an alert SMS sent to that number
+  unsigned long lastAlertSmsTime = 0UL;  // When was last time (millis()) an alert SMS sent to that number
   unsigned long minAlertInterval = DEFAULT_MIN_ALERT_INTERVAL;  // minimum interval in milliseconds between 2 alert SMS to avoid flooding
 };
 
@@ -446,6 +446,10 @@ void checkSMS() {
         sendSubs(from);
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_CONFIG))) {   // Sender wants to receive configuration
         displayConfig(true, from);
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SAVE))) {    // Sender wants config to be saved to EEPROM
+        saveConfig(from);
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_RESET_CONFIG))) {   // Sender wants to reset configuration to previously saved values
+        resetConfig(from);
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_ABOUT))) {   // Sender wants to receive 'about' information
         sendAbout(from);
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_TEMP))) {   // Sender wants to set temperture thresholds
@@ -454,12 +458,12 @@ void checkSMS() {
         setLightThresholds(from, msgIn);
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_LIGHT_SCHEDULE))) {  // Sender wants to set light schedule
         setLightSchedule(from, msgIn);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SAVE))) {    // Sender wants config to be saved to EEPROM
-        saveConfig(from);
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_STATUS))) {  // Sender wants to receive current measurements
         sendStatus(from);
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SUB))) {    // Sender wants to subscribe to given service
         subscribe(from, msgIn);
+      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_CLEAR_ALERT))) {    // Sender wants to clear his alert delay
+        clear(from);
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_UNSUB))) {   // Sender wants to unsubscribe to give service
         unsubscribe(from, msgIn);
       } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_RESET_SUB))) {  // Admin Sender wants to cancel all subscriptions
@@ -675,12 +679,23 @@ boolean subscribeFlag(char *number, byte flag) {
     if(foundOrFree != -1) {
       strncpy(config.registeredNumbers[foundOrFree].number, number, PHONE_NUMBER_LENGTH);
       config.registeredNumbers[foundOrFree].permissionFlags = flag;
-      config.registeredNumbers[foundOrFree].lastAlertSmsTime = 0;
+      config.registeredNumbers[foundOrFree].lastAlertSmsTime = 0UL;
       config.registeredNumbers[foundOrFree].minAlertInterval = DEFAULT_MIN_ALERT_INTERVAL;
       done = true;
     }
   }
   return done;
+}
+
+// Clear the last time an alert was sent, so that new alerts can be sent before the interval is elapsed
+void clear(char *number) {
+  boolean found = false;
+  char foundOrFree;
+  found = findRegisteredNumber(number, &foundOrFree);
+  if(found) {
+    config.registeredNumbers[foundOrFree].lastAlertSmsTime = 0UL;
+    sendSMS(number, getProgMemMsg(CLEAR_ALERT_DONE_MSG));
+  }
 }
 
 // Unsubscribe a user from a service
@@ -880,7 +895,7 @@ void sendSubs(char *toNumber) {
          config.registeredNumbers[i].minAlertInterval / 1000);
         sms.print(message);
         // I had to split the message to make it work... :(
-        sprintf(message, "%ds ,", (now - config.registeredNumbers[i].lastAlertSmsTime) / 1000);
+        sprintf(message, "%ds ,", min(config.registeredNumbers[i].lastAlertSmsTime, (now - config.registeredNumbers[i].lastAlertSmsTime) / 1000));
         sms.print(message);
       }
     }
@@ -956,17 +971,22 @@ void resetSub() {
       config.registeredNumbers[i].permissionFlags = 0;
       config.registeredNumbers[i].number[0] = 0;
     }
-    config.registeredNumbers[i].minAlertInterval = 1800000; // Every 30 minutes = 1800 seconds
-    config.registeredNumbers[i].lastAlertSmsTime = 0;
+    config.registeredNumbers[i].minAlertInterval = DEFAULT_MIN_ALERT_INTERVAL; // Every 30 minutes = 1800 seconds
+    config.registeredNumbers[i].lastAlertSmsTime = 0UL;
   }
 }
 
 // Save the configuration to EEPROM
-// TODO : should that be for admin only ?
 void saveConfig(char *toNumber) {
   displayTransient(getProgMemMsg(SAVING_CONFIG_MSG));
   EEPROM.writeBlock(CONFIG_ADDRESS, config);
   sendSMS(toNumber, getProgMemMsg(CONFIG_SAVED_MSG));
+}
+
+// Rollback config to previously saved values (side effect: clears last time alert sms was sent)
+void resetConfig(char *toNumber) {
+  EEPROM.readBlock(CONFIG_ADDRESS, config);
+  sendSMS(toNumber, getProgMemMsg(CONFIG_RESET_MSG));
 }
 
 // In charge of displaying messages
