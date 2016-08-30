@@ -52,7 +52,7 @@ Disclaimer: This system description is provided with no warranty whatsoever. If 
 # Some pictures 
 
 Prototype:<br/>
-<img src="http://www.adgjm.eu/img/github/aquaMonitor-1024.jpg" width="300px"/><br/>
+<img src="http://www.adgjm.eu/img/github/aquaMonitor-1024.jpg" width="400px"/><br/>
 
 <br/><br/>
 Finished:<br/>
