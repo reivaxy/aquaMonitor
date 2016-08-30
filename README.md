@@ -1,11 +1,11 @@
 # aquaMonitor
 Monitoring a recifal aquarium with an Arduino Mega board, and sending alerts by SMS
 
-Monitors light, temperature, and water level, and sends an SMS to a registered mobile phone number when configurable thresholds are reached.
+Monitors light, temperature, and water level, main power failure, and sends an SMS to a registered mobile phone number when configurable thresholds are reached.
 
 All configuration handled through SMS.
 
-Although project comes with 3D files to print the triple sensor bracket (light, temperature and adjustable water level sensor) and case, you dont *need* a 3D printer and use a case from the market and design your own fixture for the sensors.
+Although project comes with 3D files to print the triple sensor bracket (light, temperature and adjustable water level sensor) and case, you dont *need* a 3D printer, you can instead use a case from the market and design your own fixture for the sensors.
 
 A PCB design (for Fritzing http://fritzing.org/home/) is provided, you can either order the PCB, make it yourself, or use a prototyping board instead.
 
@@ -46,8 +46,6 @@ Disclaimer: This system description is provided with no warranty whatsoever. If 
 # TODOs
 * Water movement detection to warn about pumps failure (sensor remains to be found...) 
 * Some more configuration by SMS (level detection switch state inversion for instance, or display shift frequency ?)
-* 'clear' sms to cancel the interval before next alert can be sent
-* 'reset' sms to reset the unsaved configuration changes
 * Periodical status sending (upon registration) ?
 
 
