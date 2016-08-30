@@ -5,7 +5,9 @@ Monitors light, temperature, and water level, and sends an SMS to a registered m
 
 All configuration handled through SMS.
 
-Project comes with 3D files to print the triple sensor bracket (light, temperature and adjustable water level sensor) and case, and PCB design for Fritzing.
+Although project comes with 3D files to print the triple sensor bracket (light, temperature and adjustable water level sensor) and case, you dont *need* a 3D printer and use a case from the market and design your own fixture for the sensors.
+
+A PCB design (for Fritzing http://fritzing.org/home/) is provided, you can either order the PCB, make it yourself, or use a prototyping board instead.
 
 Disclaimer: This system description is provided with no warranty whatsoever. If you use it, you accept to do so at your own risks, should a bug or any event be the cause of a malfunction.
 
