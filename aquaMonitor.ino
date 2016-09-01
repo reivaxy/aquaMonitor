@@ -147,11 +147,14 @@ boolean statusOK = true;
 
 #define LEVEL_PIN 11
 
+char serialMessage[60];
+
 // TODO: offer choice with DS1302 ?
 DS1307 clock; // The RTC handle to get date and time
 
 // System initialization
 void setup(void) {
+  serialMessage[0] = 0;
   Serial.begin(9600);
 
   // Init pin with the level detector as input
@@ -216,6 +219,8 @@ char * getProgMemMsg(int messageId) {
 void loop(void) {
   // RTC does not have an epoch field :(
   unsigned long now = millis();
+  int incomingChar = 0;
+  int length;
 
   // Display is not refreshed at each cycle but only every refreshPeriod
   if(checkElapsedDelay(now, display.lastRefresh, display.refreshPeriod)) {
@@ -248,6 +253,20 @@ void loop(void) {
     sendAlert();
     statusOK = true;
   }
+
+  while (Serial.available() > 0) {
+    incomingChar = Serial.read();
+    if(incomingChar > 0) {
+      if((incomingChar == '\r') || (incomingChar == '\n')) {
+        processMessage(serialMessage, "");
+        serialMessage[0] = 0;
+      } else {
+        length = strlen(serialMessage);
+        serialMessage[length] = incomingChar;
+        serialMessage[length + 1] = 0;
+      }
+    }
+  }  
 }
 
 // return true if current time is after given time + delay
@@ -436,58 +455,61 @@ void checkSMS() {
       msgIn[cptr] = 0;
       // Delete message from modem memory
       sms.flush();
-
-      Serial.println(msgIn);
-      if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_INTERVAL))) {   // Sender wants to set his alert minimum interval (seconds)
-        setAlertInterval(from, msgIn);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_TEMP_ADJ))) {  // Sender wants to set temperature adjustment
-        setTemperatureAdjustment(from, msgIn);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SUBS))) {   // Sender wants to receive subscription information
-        sendSubs(from);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_CONFIG))) {   // Sender wants to receive configuration
-        displayConfig(true, from);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SAVE))) {    // Sender wants config to be saved to EEPROM
-        saveConfig(from);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_RESET_CONFIG))) {   // Sender wants to reset configuration to previously saved values
-        resetConfig(from);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_ABOUT))) {   // Sender wants to receive 'about' information
-        sendAbout(from);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_TEMP))) {   // Sender wants to set temperture thresholds
-        setTemperatureThresholds(from, msgIn);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_LIGHT_THRESHOLD))) {  // Sender wants to set light threshold
-        setLightThresholds(from, msgIn);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_LIGHT_SCHEDULE))) {  // Sender wants to set light schedule
-        setLightSchedule(from, msgIn);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_STATUS))) {  // Sender wants to receive current measurements
-        sendStatus(from);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SUB))) {    // Sender wants to subscribe to given service
-        subscribe(from, msgIn);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_CLEAR_ALERT))) {    // Sender wants to clear his alert delay
-        clear(from);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_UNSUB))) {   // Sender wants to unsubscribe to give service
-        unsubscribe(from, msgIn);
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_RESET_SUB))) {  // Admin Sender wants to cancel all subscriptions
-        if(!checkAdmin(from)) {
-          sendSMS(from, getProgMemMsg(ACCESS_DENIED_MSG));
-        } else {
-          resetSub();
-          sendSMS(from, getProgMemMsg(RESET_SUB_DONE_MSG));
-        }
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_RESET_LCD))) {  // Sender wants to reset the display
-        initLCD();
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SET_ADMIN))) {  // Admin Sender wants to set another admin phone number
-        if(!checkAdmin(from)) {
-          sendSMS(from, getProgMemMsg(ACCESS_DENIED_MSG));
-        } else {
-          setAdmin(from, msgIn);
-        }
-      } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SET_TIME))) {  // Sender wants to set date and time 
-        setTime(from, msgIn);
-      } else {
-        displayTransient(getProgMemMsg(UNKNOWN_MSG));
-        sendSMS(from, getProgMemMsg(UNKNOWN_MSG));
-      }
+      processMessage(msgIn, from);
     }
+  }
+}
+
+void processMessage(char *msgIn, char *from) {
+  Serial.println(msgIn);
+  if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_INTERVAL))) {   // Sender wants to set his alert minimum interval (seconds)
+    setAlertInterval(from, msgIn);
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_TEMP_ADJ))) {  // Sender wants to set temperature adjustment
+    setTemperatureAdjustment(from, msgIn);
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SUBS))) {   // Sender wants to receive subscription information
+    sendSubs(from);
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_CONFIG))) {   // Sender wants to receive configuration
+    displayConfig(true, from);
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SAVE))) {    // Sender wants config to be saved to EEPROM
+    saveConfig(from);
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_RESET_CONFIG))) {   // Sender wants to reset configuration to previously saved values
+    resetConfig(from);
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_ABOUT))) {   // Sender wants to receive 'about' information
+    sendAbout(from);
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_TEMP))) {   // Sender wants to set temperture thresholds
+    setTemperatureThresholds(from, msgIn);
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_LIGHT_THRESHOLD))) {  // Sender wants to set light threshold
+    setLightThresholds(from, msgIn);
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_LIGHT_SCHEDULE))) {  // Sender wants to set light schedule
+    setLightSchedule(from, msgIn);
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_STATUS))) {  // Sender wants to receive current measurements
+    sendStatus(from);
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SUB))) {    // Sender wants to subscribe to given service
+    subscribe(from, msgIn);
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_CLEAR_ALERT))) {    // Sender wants to clear his alert delay
+    clear(from);
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_UNSUB))) {   // Sender wants to unsubscribe to give service
+    unsubscribe(from, msgIn);
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_RESET_SUB))) {  // Admin Sender wants to cancel all subscriptions
+    if(!checkAdmin(from)) {
+      sendSMS(from, getProgMemMsg(ACCESS_DENIED_MSG));
+    } else {
+      resetSub();
+      sendSMS(from, getProgMemMsg(RESET_SUB_DONE_MSG));
+    }
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_RESET_LCD))) {  // Sender wants to reset the display
+    initLCD();
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SET_ADMIN))) {  // Admin Sender wants to set another admin phone number
+    if(!checkAdmin(from)) {
+      sendSMS(from, getProgMemMsg(ACCESS_DENIED_MSG));
+    } else {
+      setAdmin(from, msgIn);
+    }
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_SET_TIME))) {  // Sender wants to set date and time 
+    setTime(from, msgIn);
+  } else {
+    displayTransient(getProgMemMsg(UNKNOWN_MSG));
+    sendSMS(from, getProgMemMsg(UNKNOWN_MSG));
   }
 }
 
@@ -765,8 +787,8 @@ void sendSMS(char *toNumber, char *message) {
   // that will be re used a few lines below when calling again getProgMemMsg
   strncpy(msg, message, 199);
   msg[199] = 0;
-  if(toNumber[0] == 0) return;
   Serial.println(msg);
+  if(toNumber[0] == 0) return;
 
   // send the message
   if(gsmEnabled) {
@@ -789,7 +811,7 @@ void displayConfig(boolean sendSMS, char *toNumber) {
   char strFlags[5];
   char space[] = ", ";
   clock.getTime();
-  if(!gsmEnabled) {
+  if(!gsmEnabled || (toNumber[0] == 0)) {
     sendSMS = false;
   }
 
@@ -863,6 +885,7 @@ void displayConfig(boolean sendSMS, char *toNumber) {
   // This part not sent in config SMS (available in reply to 'subs' sms)
   for(i=0 ; i < MAX_PHONE_NUMBERS; i++ ) {
     if(config.registeredNumbers[i].number[0] != 0) {
+      Serial.print(" ");
       Serial.print(i);
       Serial.print(" ");
       Serial.print(config.registeredNumbers[i].number);
