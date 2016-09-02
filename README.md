@@ -10,6 +10,7 @@ Although project comes with 3D files to print the triple sensor bracket (light, 
 A PCB design (for Fritzing http://fritzing.org/home/) is provided, you can either order the PCB, make it yourself, or use a prototyping board instead.
 
 Disclaimer: This system description is provided with no warranty whatsoever. If you use it, you accept to do so at your own risks, should a bug or any event be the cause of a malfunction.
+Originally supposed to run on a UNO board, this project does not take full advantage of more advanced Mega board features.
 
 # Available features
 * Temperature periodical measurement
@@ -51,7 +52,7 @@ Disclaimer: This system description is provided with no warranty whatsoever. If 
 
 # Some pictures 
 
-Prototype:<br/>
+Prototype (at the time it could run on a UNO board):<br/>
 <img src="http://www.adgjm.eu/img/github/aquaMonitor-1024.jpg" width="400px"/><br/>
 
 <br/><br/>
