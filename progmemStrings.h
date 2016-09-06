@@ -8,7 +8,7 @@ const char addrErrMsg[] PROGMEM = {"Error addr 0"};
 #define ADDR_ERR_MSG 1
 const char alertMsgFormat[] PROGMEM = {"ALERT - %s: %s, %s, %s, %s. "};
 #define ALERT_MSG_FORMAT 2
-const char buildMsg[] PROGMEM = {"aquaMonitor "__DATE__ " " __TIME__};
+const char buildMsg[] PROGMEM = {"aquaMonitor " __DATE__ " " __TIME__};
 #define BUILD_MSG 3
 const char checkSmsMsg[] PROGMEM = {"Checking SMS"};
 #define CHECK_SMS_MSG 4

@@ -10,7 +10,7 @@
 ACCESS_DENIED_MSG "Access denied"
 ADDR_ERR_MSG "Error addr 0"
 ALERT_MSG_FORMAT "ALERT - %s: %s, %s, %s, %s. "
-BUILD_MSG "aquaMonitor "__DATE__ " " __TIME__
+BUILD_MSG "aquaMonitor " __DATE__ " " __TIME__
 CHECK_SMS_MSG "Checking SMS"
 CLEAR_ALERT_DONE_MSG "Clear alert done"
 CONFIG_RESET_MSG "Config reset"

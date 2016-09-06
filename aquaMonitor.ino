@@ -1,7 +1,3 @@
-// BOF preprocessor bug prevent - insert me on top of your arduino-code
-#if 1
-__asm volatile ("nop");
-#endif
 
 #include <OneWire.h>
 #include <GSM.h>
@@ -14,7 +10,7 @@ __asm volatile ("nop");
 // 'admin' phone number defined outside of open source file haha !
 // This file should contain a line in the likes of:
 // #define ADMIN_NUMBER "+12345678910", which is the international number notation
-#include <remoteNumber.h>
+#include "remoteNumber.h"
 
 // Compilation directives to enable/disable stuff like IR support
 // Beware, 'includes' for the matching libraries need to be commented / uncommented
@@ -426,7 +422,7 @@ void checkSMS() {
   char c,i;
   int cptr = 0;
   if(!gsmEnabled) {
-    Serial.println('NO GSM');
+    Serial.println("NO GSM");
     return;
   }
   displayTransient(getProgMemMsg(CHECK_SMS_MSG));
