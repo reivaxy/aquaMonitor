@@ -48,7 +48,7 @@ Originally supposed to run on a UNO board, this project does not take full advan
 * Water movement detection to warn about pumps failure (sensor remains to be found...) 
 * Some more configuration by SMS (level detection switch state inversion for instance, or display shift frequency ?)
 * Periodical status sending (upon registration) ?
-
+* see roadmap for bigger planned changes
 
 # Some pictures 
 
