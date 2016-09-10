@@ -9,4 +9,4 @@
 #define CONNECTING_HOME_NETWORK "Connecting wifi"
 #define CONNECTED_HOME_NETWORK "Connected %s"
 #define CONNECTION_TIMED_OUT "Wifi time out"
-#define ACCESS_IP "IP: %s"
+#define ACCESS_IP "IP: "

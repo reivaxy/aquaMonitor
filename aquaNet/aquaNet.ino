@@ -18,7 +18,7 @@
 #include "aquaNetMessages.h"
 
 // Structure to hold all wifi-related configuration
-#define CONFIG_VERSION 1
+#define CONFIG_VERSION 'A'
 #define CONFIG_ADDRESS 16
 #define DEFAULT_AP_SSID "aquaMonitor"    // AP ssid by default, known by all devices, can be changed
 #define DEFAULT_AP_PWD  "aquaPwd"        // AP pwd by default so that other devices can connect
@@ -76,11 +76,10 @@ WiFiClient client;
 MDNSResponder mdns;
 unsigned long startTime = millis();
 int clientConnected = 0; 
-
+boolean homeWifiConnected = false;
 char message[60];
 
 void setup(void){
-  boolean connected = false;
   int timeout = 40;
   char ip[20];
 
@@ -88,29 +87,45 @@ void setup(void){
   EEPROM.begin(configSize);  // Config is read from and stored to EEPROM
   Serial.begin(115200);
   delay(3000); // delay to connect monitor
+  Serial.println("");
   readConfig();
 
-  // Connect to home network
-  WiFi.begin(config.homeSsid, config.homePwd);
-  Serial.println(CONNECTING_HOME_NETWORK);
+  // Set the accesspoint
+  // `WiFi.mode(m)`: set mode to `WIFI_AP`, `WIFI_STA`, `WIFI_AP_STA` or `WIFI_OFF`.
+  // call `WiFi.softAP(ssid)` to set up an open network
+  // call `WiFi.softAP(ssid, password)` to set up a WPA2-PSK network (password should be at least 8 characters)
+  // `WiFi.macAddress(mac)` is for STA, `WiFi.softAPmacAddress(mac)` is for AP.
+  // `WiFi.localIP()` is for STA, `WiFi.softAPIP()` is for AP.
+  // `WiFi.printDiag(Serial)` will print out some diagnostic info
+  Serial.println("Creating AP");
+  Serial.println(config.APSsid);
+  Serial.println(config.APPwd);
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.softAP(config.APSsid, config.APPwd);
 
-  // Wait for connection, with timeout
-  while ((WiFi.status() != WL_CONNECTED) && timeout --) {
-    delay(500);
-  }
-  if(WiFi.status() == WL_CONNECTED) {
-    connected = true;
-    sprintf(message, CONNECTED_HOME_NETWORK, config.homeSsid);
-    Serial.println(message);
-  } else {
-    Serial.println(CONNECTION_TIMED_OUT);
-  }
+  // Connect to home network if any
+  if(config.homeSsid[0] != 0) {
+    WiFi.begin(config.homeSsid, config.homePwd);
+    Serial.println(CONNECTING_HOME_NETWORK);
 
-  Serial.print(ACCESS_IP);
-  Serial.print(WiFi.localIP());
-  
-  if (mdns.begin("esp8266", WiFi.localIP())) {
-    Serial.println(">MDNS responder started");
+    // Wait for connection, with timeout
+    while ((WiFi.status() != WL_CONNECTED) && timeout --) {
+      delay(500);
+    }
+    if(timeout != 0) {
+      homeWifiConnected = true;
+      sprintf(message, CONNECTED_HOME_NETWORK, config.homeSsid);
+      Serial.println(message);
+    } else {
+      Serial.println(CONNECTION_TIMED_OUT);
+    }
+
+    Serial.print(ACCESS_IP);
+    Serial.println(WiFi.localIP());
+    
+    if (mdns.begin("esp8266", WiFi.localIP())) {
+      Serial.println(">MDNS responder started");
+    }
   }
   server.on("/", [](){
     char name[50];
@@ -124,6 +139,7 @@ void setup(void){
 
   server.begin();
   Serial.println(">HTTP server started");
+  WiFi.printDiag(Serial);
 }
 
 
@@ -131,13 +147,16 @@ void loop(void){
   server.handleClient();
   char request[100];
   int now = millis();
-  if (now - startTime > 20000) {
+  if ((now - startTime > 20000) && (config.statisticsHost[0] !=0) && homeWifiConnected){
     startTime = now;
+    Serial.println("Connecting to Host");
+    Serial.println(config.statisticsHost);
     if (client.connect(config.statisticsHost, 80)) {
       clientConnected = 1;
       Serial.println("Connected to Host");
       // Make a HTTP request:
-      sprintf(request, "GET /cgi-bin/webdistrib.cgi?time=%d&%s HTTP/1.1", startTime, message);
+      sprintf(request, "GET %s?time=%d&%s HTTP/1.1", config.statisticsPath, startTime, message);
+      Serial.println(request);
       client.println(request);
       sprintf(request, "Host: %s", config.statisticsHost);
       client.println(request);
