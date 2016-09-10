@@ -6,11 +6,10 @@
 #include <Wire.h>
 #include "DS1307.h"
 
-
 // 'admin' phone number defined outside of open source file haha !
 // This file should contain a line in the likes of:
 // #define ADMIN_NUMBER "+12345678910", which is the international number notation
-#include "remoteNumber.h"
+#include "aquaMonitorSecret.h"
 
 // Compilation directives to enable/disable stuff like IR support
 // Beware, 'includes' for the matching libraries need to be commented / uncommented
@@ -90,6 +89,7 @@ struct displayData {
 #define PINNUMBER "" // Pin number for the SIM CARD
 GSM gsmAccess; // include a 'true' parameter for debug enabled
 GSM_SMS sms;
+GSMVoiceCall vcs;
 
 // LCD
 #if WITH_LCD_SUPPORT
@@ -135,6 +135,10 @@ unsigned long lastPowerCheck = lastTemperatureCheck;
 #define SMS_CHECK_PERIOD 30000
 unsigned long lastSmsCheck = lastTemperatureCheck;
 
+// Check for incoming voice call: if not handled, will break SMS management
+#define CALL_CHECK_PERIOD 10000
+unsigned long lastCallCheck = lastTemperatureCheck;
+
 // Max size of a received SMS
 #define MAX_SMS_LENGTH 40
 boolean gsmEnabled = true;
@@ -157,7 +161,7 @@ void setup(void) {
   pinMode(LEVEL_PIN, INPUT);
   digitalWrite(LEVEL_PIN, HIGH); // Activate pullup resistor
 
-  // Just in case some loop goes crazy, limit the number of EEPROM writes to save it
+  // During dev and debug, in case some loop goes crazy, limit the number of EEPROM writes to save it
   // TODO : this should be removed some day
   EEPROM.setMaxAllowedWrites(100);
 
@@ -190,9 +194,11 @@ void setup(void) {
     displayTransient(getProgMemMsg(CONNECTING_GSM_MSG));
     if(gsmAccess.begin(PINNUMBER)==GSM_READY) {
       displayTransient(getProgMemMsg(CONNECTED_GSM_MSG));
+      // This makes sure the modem notifies correctly incoming events
+      vcs.hangCall();
     } else {
       displayTransient(getProgMemMsg(NOT_CONNECTED_GSM_MSG));
-      delay(20000);
+      delay(1000);
     }
   }
 #if WITH_LCD_SUPPORT
@@ -230,7 +236,7 @@ void loop(void) {
   }
   if(checkElapsedDelay(now, lastTemperatureCheck, TEMPERATURE_CHECK_PERIOD)) {
     statusOK = checkTemperature() && statusOK;
-    lastTemperatureCheck = millis();
+    lastTemperatureCheck = now;
   }
   if(checkElapsedDelay(now, lastLevelCheck, LEVEL_CHECK_PERIOD)) {
     statusOK = checkLevel() && statusOK;
@@ -243,6 +249,10 @@ void loop(void) {
   if(checkElapsedDelay(now, lastSmsCheck, SMS_CHECK_PERIOD)) {
     checkSMS();
     lastSmsCheck = millis(); // checkSMS is a bit slow.
+  }
+  if(checkElapsedDelay(now, lastCallCheck, CALL_CHECK_PERIOD)) {
+    checkCall();
+    lastCallCheck = now;
   }
 
   if(!statusOK) {
@@ -308,6 +318,7 @@ boolean checkTemperature() {
     displayTransient(getProgMemMsg(CRC_NOT_VALID_MSG));
   } else if ( addr[sensor][0] != 0x28) {
     displayTransient(getProgMemMsg(FAMILY_MSG));
+    sprintf(display.temperatureMsg, getProgMemMsg(TEMPERATURE_MSG_FORMAT), '+', 0 );
   } else {
     ds.reset();
     ds.select(addr[sensor]);
@@ -413,6 +424,18 @@ boolean checkLight() {
     displayPermanent(getProgMemMsg(LIGHT_ALERT_MSG));
   }
   return(lightOK);
+}
+
+// Check for incoming voice call, in order to not break SMS
+void checkCall() {
+  switch (vcs.getvoiceCallStatus()) {
+    case RECEIVINGCALL:
+      Serial.println("RECEIVING CALL");
+      vcs.answerCall();         
+      delay(1000);
+      vcs.hangCall();
+      break;
+  }
 }
 
 // Check for incoming SMS, and processes it if any
@@ -1022,7 +1045,7 @@ void refreshDisplay() {
     Serial.print(" ");
     Serial.print(display.lightMsg);
     Serial.print(" ");
-    Serial.println(display.levelMsg);
+    Serial.print(display.levelMsg);
     Serial.print(" ");
     Serial.println(display.powerMsg);
     lastSerialStatus = now;
