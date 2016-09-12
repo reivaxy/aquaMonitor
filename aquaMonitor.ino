@@ -5,6 +5,8 @@
 #include <EEPROMvar.h>
 #include <Wire.h>
 #include "DS1307.h"
+#include "aquaNet/interComMsg.h"
+#include "aquaNet/common.h"
 
 // 'admin' phone number defined outside of open source file haha !
 // This file should contain a line in the likes of:
@@ -14,7 +16,7 @@
 // Compilation directives to enable/disable stuff like IR support
 // Beware, 'includes' for the matching libraries need to be commented / uncommented
 // In the first #if using these flags
-#define WITH_LCD_SUPPORT true      // About 1,6k prog, 30B RAM
+#define WITH_LCD_SUPPORT false      // About 1,6k prog, 30B RAM  TSTWIFI
 
 // Strings to store in progmem space to free variable space
 #include "./progmemStrings.h"
@@ -141,13 +143,14 @@ unsigned long lastCallCheck = lastTemperatureCheck;
 
 // Max size of a received SMS
 #define MAX_SMS_LENGTH 40
-boolean gsmEnabled = true;
+boolean gsmEnabled = false;    // TSTWIFI
 
 boolean statusOK = true;
 
 #define LEVEL_PIN 11
 
-char serialMessage[60];
+char serialMessage[MAX_SERIAL_INPUT_MESSAGE];
+char serialMessageFromESP[MAX_SERIAL_INPUT_MESSAGE];
 
 // TODO: offer choice with DS1302 ?
 DS1307 clock; // The RTC handle to get date and time
@@ -155,7 +158,9 @@ DS1307 clock; // The RTC handle to get date and time
 // System initialization
 void setup(void) {
   serialMessage[0] = 0;
+  serialMessageFromESP[0] = 0;
   Serial.begin(9600);
+  Serial1.begin(9600);
 
   // Init pin with the level detector as input
   pinMode(LEVEL_PIN, INPUT);
@@ -260,19 +265,43 @@ void loop(void) {
     statusOK = true;
   }
 
-  while (Serial.available() > 0) {
-    incomingChar = Serial.read();
-    if(incomingChar > 0) {
-      if((incomingChar == '\r') || (incomingChar == '\n')) {
-        processMessage(serialMessage, "");
-        serialMessage[0] = 0;
-      } else {
-        length = strlen(serialMessage);
-        serialMessage[length] = incomingChar;
-        serialMessage[length + 1] = 0;
-      }
+  // Check USB serial for incoming messages
+  checkSerial(&Serial, serialMessage, processMessageFromUSB);
+
+  // Check serial1 for incoming messages from wifi module
+  checkSerial(&Serial1, serialMessageFromESP, processMessageFromESP);
+
+}
+
+// Process a message sent by the ESP module 
+void processMessageFromESP(char *message) {
+  // Message not starting with '#' just needs to be forwarded to USB serial
+  char *prefix;
+  char *content;
+  char *firstChar = message;
+  char answer[100];
+  if(*firstChar != '#') {
+    Serial.println(message);
+  } else {
+    firstChar++; // check after first # char
+    prefix = strtok(firstChar, ":");
+    content = strtok(NULL, ":");
+
+    if(strcmp(prefix, REQUEST_IF_GSM) == 0) {
+      // esp wants to know if module is equipped with GSM
+      sprintf(answer, "%s:%d", REQUEST_IF_GSM, gsmEnabled);
+      Serial1.println(answer);
+    } else if(strcmp(prefix, REQUEST_MEASURES) == 0) {
+      // esp wants to know measures to log them
+      sprintf(answer, "%s:%s, %s, %s, %s.", REQUEST_MEASURES, display.temperatureMsg, display.lightMsg, display.levelMsg, display.powerMsg);
+      Serial1.println(answer);
     }
-  }  
+  }
+}
+
+// Process a message received by USB serial
+void processMessageFromUSB(char *message) {
+  processMessage(message, "");
 }
 
 // return true if current time is after given time + delay
@@ -481,7 +510,10 @@ void checkSMS() {
 
 void processMessage(char *msgIn, char *from) {
   Serial.println(msgIn);
-  if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_INTERVAL))) {   // Sender wants to set his alert minimum interval (seconds)
+  // Messages starting with 'wifi:' are forwarded to wifi module
+  if(strncmp(msgIn, "wifi:", 5) == 0) {
+    Serial1.println(&(msgIn[5]));
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_INTERVAL))) {   // Sender wants to set his alert minimum interval (seconds)
     setAlertInterval(from, msgIn);
   } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_TEMP_ADJ))) {  // Sender wants to set temperature adjustment
     setTemperatureAdjustment(from, msgIn);
