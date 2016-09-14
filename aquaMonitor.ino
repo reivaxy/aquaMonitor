@@ -266,7 +266,7 @@ void loop(void) {
   }
 
   // Check USB serial for incoming messages
-  checkSerial(&Serial, serialMessage, processMessageFromUSB);
+  checkSerial(&Serial, serialMessage, processMessageFromSerial);
 
   // Check serial1 for incoming messages from wifi module
   checkSerial(&Serial1, serialMessageFromESP, processMessageFromESP);
@@ -280,9 +280,12 @@ void processMessageFromESP(char *message) {
   char *content;
   char *firstChar = message;
   char answer[100];
-  if(*firstChar != '#') {
-    Serial.println(message);
-  } else {
+  if(*firstChar == '@') {
+    // The message sent by ESP is actually a command for the arduino
+    firstChar++; // check after first # char
+    processMessageFromSerial(firstChar);
+  } else if(*firstChar == '#') {
+    // The message sent by ESP is actually a specific ESP request
     firstChar++; // check after first # char
     prefix = strtok(firstChar, ":");
     content = strtok(NULL, ":");
@@ -296,11 +299,14 @@ void processMessageFromESP(char *message) {
       sprintf(answer, "%s:%s, %s, %s, %s.", REQUEST_MEASURES, display.temperatureMsg, display.lightMsg, display.levelMsg, display.powerMsg);
       Serial1.println(answer);
     }
+  } else {
+    // The message sent by ESP should just be sent to USB serial
+    Serial.println(message);
   }
 }
 
 // Process a message received by USB serial
-void processMessageFromUSB(char *message) {
+void processMessageFromSerial(char *message) {
   processMessage(message, "");
 }
 

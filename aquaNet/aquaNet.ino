@@ -7,6 +7,7 @@
 // technical messages between esp and arduino
 #include "interComMsg.h"
 #include "common.h"
+#include "html.h"
 
 // The aquaMonitorSecret.h should be stored in a same-name sub directory of
 // your libraries directory. It's obviously not in the git repository :)
@@ -144,15 +145,21 @@ void setup(void){
   }
 
   server.on("/", [](){
-  /*
-    char name[50];
-    char value[50];
-    server.argName(0).toCharArray(name, 50);
-    server.arg(0).toCharArray(value, 50);
-    sprintf(message, "%s=%s", name, value);
-    */
-    server.send(200, "text/html", "ok");
-    delay(1000);
+    printHTMLPage();
+  });
+  server.on("/msgArduino", [](){
+    // We assume there is only one param
+    char command[200];
+    server.arg(0).toCharArray(command, 50);
+    sendArduinoCommand(command);
+    printHTMLPage();
+  });
+  server.on("/msgESP", [](){
+    // We assume there is only one param
+    char command[200];
+    server.arg(0).toCharArray(command, 50);
+    processMessage(command);
+    printHTMLPage();
   });
 
   server.begin();
@@ -164,6 +171,10 @@ void setup(void){
 
 }
 
+void printHTMLPage() {
+  server.send(200, "text/html", html);
+  delay(1000);
+}
 // Create Access Point (once arduino confirmed it's equipped with GSM module
 void startAP() {
   // Set the accesspoint only if module equipped with GSM
@@ -182,11 +193,12 @@ void startAP() {
 
 
 char serialMessage[MAX_SERIAL_INPUT_MESSAGE];
+
 void loop(void) {
   int now = millis();
 
   server.handleClient();
-  if ((config.statisticsHost[0] !=0) && homeWifiConnected && checkElapsedDelay(now, lastStatSent, config.statisticsInterval)) {
+  if ((config.statisticsHost[0] !=0) && homeWifiConnected && checkElapsedDelay(now, lastStatSent, config.statisticsInterval/10)) {
     sendArduino(REQUEST_MEASURES);
     lastStatSent = now;  // Don't wait for actual sending to not request again next loop
   }
@@ -245,11 +257,25 @@ void sendStat(char *stat) {
   }
 }
 
-// Send a request to Arduino. Requests start with '#'
+// Send a request to Arduino.
+// Requests for esp-arduino conversation start with '#'
 // Other messages sent to arduino via Serial will be forwarded to arduino's USB serial
 void sendArduino(char *msg) {
   char message[200];
-  sprintf(message, "#%s", msg);
+  if(*msg == '@') {
+    sprintf(message, "%s", hash, msg);  // ESP command sent to arduino, i.e. chkGSM ...
+  } else {
+    sprintf(message, "#%s", hash, msg); // Arduino command. i.e. status, or config
+  }
+  Serial.println(message);
+}
+
+// Send an arduino command to Arduino.
+// Requests that are commands for arduino start with '@'
+// Other messages sent to arduino via Serial will be forwarded to arduino's USB serial
+void sendArduinoCommand(char *msg) {
+  char message[200];
+  sprintf(message, "@%s", msg);
   Serial.println(message);
 }
 
