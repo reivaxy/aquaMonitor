@@ -50,6 +50,7 @@ boolean homeWifiConnected = false;
 
 unsigned long lastStatSent = 0;
 unsigned long lastArduinoCheck = 0;
+char aquaStatus[100];
 
 // return true if current time is after given time + delay
 boolean checkElapsedDelay(unsigned long now, unsigned long lastTime, unsigned long delay) {
@@ -111,6 +112,8 @@ void setup(void){
   char message[100];
 
   unsigned int configSize = sizeof(config);
+
+  strcpy(aquaStatus, "Not yet known");
   EEPROM.begin(configSize);  // Config is read from and stored to EEPROM
   Serial.begin(9600);
   WiFi.mode(WIFI_STA);  // ap could be active from previous time
@@ -161,6 +164,12 @@ void setup(void){
     processMessage(command);
     printHTMLPage();
   });
+  server.on("/method", [](){
+    // for now there is only one param
+    char command[200];
+    server.arg(0).toCharArray(command, 50);
+    server.send(200, "text/plain", processMethod(command));
+  });
 
   server.begin();
   Serial.println("HTTP server started");
@@ -168,7 +177,12 @@ void setup(void){
 
   // Ask Arduino if it is equipped with GSM
   sendArduino(REQUEST_IF_GSM);
+}
 
+char *processMethod(char *method) {
+  if(strcmp(method, "status") == 0) {
+    return(aquaStatus);
+  }
 }
 
 void printHTMLPage() {
@@ -227,20 +241,20 @@ void processMessage(char *message) {
         WiFi.mode(WIFI_STA); // Stop the access point
       }
     } else if(strcmp(prefix, REQUEST_MEASURES) == 0) {
-      sendStat(content);
+      strcpy(aquaStatus, content);
+      sendStat();
     }
   }
 
 
 }
 
-void sendStat(char *stat) {
+void sendStat() {
   char request[200];
   char param[200];
   if (client.connect(config.statisticsHost, 80)) {
     clientConnected = 1;
-
-    sprintf(request, "GET %s?stat=%s HTTP/1.1", config.statisticsPath, urlEncode(stat, param));
+    sprintf(request, "GET %s?stat=%s HTTP/1.1", config.statisticsPath, urlEncode(aquaStatus, param));
     Serial.println(request);
     client.println(request);
     sprintf(request, "Host: %s", config.statisticsHost);
@@ -263,9 +277,9 @@ void sendStat(char *stat) {
 void sendArduino(char *msg) {
   char message[200];
   if(*msg == '@') {
-    sprintf(message, "%s", hash, msg);  // ESP command sent to arduino, i.e. chkGSM ...
+    sprintf(message, "%s", msg);  // ESP command sent to arduino, i.e. chkGSM ...
   } else {
-    sprintf(message, "#%s", hash, msg); // Arduino command. i.e. status, or config
+    sprintf(message, "#%s", msg); // Arduino command. i.e. status, or config
   }
   Serial.println(message);
 }
