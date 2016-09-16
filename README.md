@@ -9,6 +9,8 @@ Although project comes with 3D files to print the triple sensor bracket (light, 
 
 A PCB design (for Fritzing http://fritzing.org/home/) is provided, you can either order the PCB, make it yourself, or use a prototyping board instead.
 
+The branch named "wifi" explores IOT: Exposition of an embedded web server to display data and access configuration, creation of a wifi access point for other modules to connect and share the GSM module... etc.
+
 Disclaimer: This system description is provided with no warranty whatsoever. If you use it, you accept to do so at your own risks, should a bug or any event be the cause of a malfunction.
 Originally supposed to run on a UNO board, this project does not take full advantage of more advanced Mega board features.
 
@@ -45,10 +47,10 @@ Originally supposed to run on a UNO board, this project does not take full advan
 
   
 # TODOs
-* Water movement detection to warn about pumps failure (sensor remains to be found...) 
+* Water movement detection to warn about pumps failure (sensor remains to be found or designed...) 
 * Some more configuration by SMS (level detection switch state inversion for instance, or display shift frequency ?)
 * Periodical status sending (upon registration) ?
-* see roadmap for bigger planned changes
+* see roadmap for bigger planned changes (Wifi connection, web server)
 
 # Some pictures 
 
