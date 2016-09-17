@@ -1,0 +1,35 @@
+[{
+  "name": "AquaMedic",
+  "type": 0,
+  "localIP": "192.168.0.29",
+  "APName": "AquaNet",
+  "APIP": "192.168.4.9",
+  "temperature": 25.2,
+  "temperatureAlert": 0,
+  "minTemperature": 25,
+  "maxTemperature": 27,
+  "light": 500,
+  "lightAlert": 0,
+  "minLight": 0,
+  "maxLight": 500,
+  "waterLevel": 1,
+  "power": 1
+
+}, {
+  "name": "Jobert",
+  "type": 1,
+  "localIP": "192.168.0.30",
+  "APName": "AquaNet",
+  "APIP": "192.168.4.10",
+  "temperature": 24,
+  "temperatureAlert": 1,
+  "minTemperature": 25,
+  "maxTemperature": 27,
+  "light": 800,
+  "lightAlert": 0,
+  "minLight": 700,
+  "maxLight": 1024,
+  "waterLevel": 1,
+  "power": 1
+
+}]
