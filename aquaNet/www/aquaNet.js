@@ -53,12 +53,17 @@ $(document).ready(function() {
   var AquaNetView = Backbone.View.extend({
     tagName: "li",
     template: _.template('\
-<div class="module <%- type %> <%- globalAlert %> ">\
+<div class="module <%- type %> <%- globalAlert %>">\
 <div class="name"><%- name %></div>\
 <div class="localIP"><%- localIP %></div>\
-<div class="APName">Network Name: <%- APName %></div>\
+<div class="APName"><%- APName %></div>\
 <div class="APIP"><span><%- APName %></span><%- APIP %></div>\
 <div class="temperature <%- temperatureAlert %>"><%- temperature %></div>\
+<div class="temperatureRange"><%- minTemperature %> - <%- maxTemperature %></div>\
+<div class="light <%- lightAlert %>"><%- light %></div>\
+<div class="lightRange"><%- minLight %> - <%- maxLight %></div>\
+<div class="waterLevel <%- waterLevel %>"></div>\
+<div class="power <%- power %>"></div>\
 </div>'),
     initialize: function() {
       this.listenTo(this.model, 'change', this.render);

@@ -1,29 +1,33 @@
 
 body {
-    background: linear-gradient(to bottom, #1e5799 11%,#7db9e8 74%);
-    padding: 10px;
+  background: linear-gradient(to top, #1e5799 11%,#7db9e8 74%);
+  padding: 10px;
 }
 
 h1 {
-    text-align: center;
+  text-align: center;
 }
 
-.name::before {
-  content: "Name: ";
-}
-.localIP::before {
-  content: "IP on home wifi network: ";
-}
-.APIP::before {
-  content: "IP on ";
-}
-.APIP span::after {
-  content: " network: ";
-}
-.temperature::before {
-  content: "Temperature: ";
+#main li {
+  display: inline-block;
+  padding: 10px;
+  margin-right: 10px;
+  border: 1px solid grey;
 }
 
+.name {
+  border-bottom: 1px solid black;
+  margin-bottom: 15px;
+}
+
+
+/*Show/hide conditional stuff*/
+
+/*Alert section*/
 .module.isAlert .name{
   background-color: red;
+}
+
+.module div.isAlert {
+  background-color: lightpink;
 }

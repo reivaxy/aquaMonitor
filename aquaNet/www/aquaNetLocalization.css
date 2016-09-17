@@ -1,0 +1,47 @@
+
+/* Localization */
+/*.name::before {*/
+  /*content: "Name: ";*/
+/*}*/
+.localIP::before {
+  content: "IP on home wifi network: ";
+}
+.APName::before {
+  content: "Network Name: ";
+}
+.APIP::before {
+  content: "IP on ";
+}
+.APIP span::after {
+  content: " network: ";
+}
+.temperature::before {
+  content: "Temperature: ";
+}
+.temperatureRange::before {
+  content: "Temperature range: ";
+}
+.light::before {
+  content: "Light: ";
+}
+.lightRange::before {
+  content: "Light range: ";
+}
+.waterLevel::before {
+  content: "Water level: ";
+}
+.waterLevel.high::after {
+  content: "High";
+}
+.waterLevel.low::after {
+  content: "Low";
+}
+.power::before {
+  content: "Main power: ";
+}
+.power.on::after {
+  content: "On";
+}
+.power.off::after {
+  content: "Off";
+}
