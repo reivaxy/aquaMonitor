@@ -8,3 +8,6 @@ This is the optional Wifi device that will allow you to:
 Use the Arduino IDE to build and upload the binary to your ESP8266 module.
 The steps to set up the IDE are described here: http://randomnerdtutorials.com/how-to-install-esp8266-board-arduino-ide/
 
+
+Prototype of the page served by the Master module, displaying the results for itself and a Station module:
+<img src="aquaNet.png" width="300px"/>
