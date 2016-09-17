@@ -4,10 +4,6 @@
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
-// technical messages between esp and arduino
-#include "interComMsg.h"
-#include "common.h"
-#include "html.h"
 
 // The aquaMonitorSecret.h should be stored in a same-name sub directory of
 // your libraries directory. It's obviously not in the git repository :)
@@ -17,6 +13,11 @@
 // #define DEFAULT_STAT_HOST "http://www.your-stat-host.com"
 // #define DEFAULT_STAT_PATH "/aquaStat.php"
 #include "aquaMonitorSecret.h"
+
+// technical messages between esp and arduino
+#include "interComMsg.h"
+#include "common.h"
+#include "html.h"
 
 // localizable messages intended to be displayed/sent to usb serial
 #include "aquaNetMessages.h"
@@ -169,6 +170,11 @@ void setup(void){
     char command[200];
     server.arg(0).toCharArray(command, 50);
     server.send(200, "text/plain", processMethod(command));
+  });
+
+  server.on("/getData.json", [](){
+    char data[] = "[{ \"name\": \"The Nursery\", \"type\": 0, \"localIP\": \"192.168.0.29\", \"APName\": \"AquaNet\", \"APIP\": \"192.168.4.9\", \"temperature\": 25.2, \"temperatureAlert\": 0, \"minTemperature\": 25, \"maxTemperature\": 27, \"light\": 500, \"lightAlert\": 0, \"minLight\": 0, \"maxLight\": 500, \"waterLevel\": 1, \"power\": 1 }, { \"name\": \"The Jobert\", \"type\": 1, \"localIP\": \"192.168.0.30\", \"APName\": \"AquaNet\", \"APIP\": \"192.168.4.10\", \"temperature\": 24, \"temperatureAlert\": 1, \"minTemperature\": 25, \"maxTemperature\": 27, \"light\": 800, \"lightAlert\": 0, \"minLight\": 700, \"maxLight\": 1024, \"waterLevel\": 1, \"power\": 1 }]";
+    server.send(200, "text/plain", data);
   });
 
   server.begin();

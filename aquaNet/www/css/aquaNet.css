@@ -8,15 +8,13 @@ h1 {
   text-align: center;
 }
 
-#main li {
-  display: inline-block;
-  padding: 10px;
-  margin-right: 10px;
-  border: 1px solid grey;
+.module {
+  border: 1px solid black;
+  margin-bottom: 15px;
 }
 
 .name {
-  border-bottom: 1px solid black;
+  border-bottom: 1px solid grey;
   margin-bottom: 15px;
 }
 

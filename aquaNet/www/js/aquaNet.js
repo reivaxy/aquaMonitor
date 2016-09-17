@@ -1,6 +1,5 @@
 $(document).ready(function() {
-  $('body').append($('<h1>Aquanet</h1>')) ;
-  $('body').append($('<div id="main"><ul id="module-list"></ul></div>')) ;
+  $('body').append($('<div class="container-fluid" id="container"><h1>Aquanet</h1><div id="main"><div id="module-list" class="row"></div></div></div>')) ;
 
   var AquaNetModule = Backbone.Model.extend({
     defaults: function() {
@@ -43,18 +42,21 @@ $(document).ready(function() {
     }
   });
 
+  var url = document.location.href.split('/');
+  url.pop();
+  url = url.join('/') + "/getData.json"
   var AquaNetList = Backbone.Collection.extend({
     model: AquaNetModule,
-    url: "testData.json"
+    url: url
   });
 
   var modules = new AquaNetList;
 
   var AquaNetView = Backbone.View.extend({
-    tagName: "li",
+    tagName: "div",
     template: _.template('\
 <div class="module <%- type %> <%- globalAlert %>">\
-<div class="name"><%- name %></div>\
+<div class="name <%- name %>"><%- name %></div>\
 <div class="localIP"><%- localIP %></div>\
 <div class="APName"><%- APName %></div>\
 <div class="APIP"><span><%- APName %></span><%- APIP %></div>\
@@ -71,6 +73,7 @@ $(document).ready(function() {
 
     render: function() {
       this.$el.html(this.template(this.model.toJSON()));
+      this.$el.addClass("col-xs-12 col-sm-4 col-md-4 col-lg-3") ;
       return this;
     }
   });
