@@ -180,8 +180,11 @@ void setup(void){
 }
 
 char *processMethod(char *method) {
+
   if(strcmp(method, "status") == 0) {
     return(aquaStatus);
+  } else {
+    return "";
   }
 }
 

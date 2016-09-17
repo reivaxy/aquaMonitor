@@ -7,3 +7,23 @@ body {
 h1 {
     text-align: center;
 }
+
+.name::before {
+  content: "Name: ";
+}
+.localIP::before {
+  content: "IP on home wifi network: ";
+}
+.APIP::before {
+  content: "IP on ";
+}
+.APIP span::after {
+  content: " network: ";
+}
+.temperature::before {
+  content: "Temperature: ";
+}
+
+.module.isAlert .name{
+  background-color: red;
+}
