@@ -15,6 +15,7 @@
 #V2.0
 - Connects to home wifi network
 - Logs all measures to external website
+- expose a webApp allowing to see all data, and edit settings
 
 #V3.0
 - Creates own private wifi network
