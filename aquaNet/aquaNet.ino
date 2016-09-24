@@ -4,7 +4,7 @@
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
-
+#include <ArduinoJson.h>
 // The aquaMonitorSecret.h should be stored in a same-name sub directory of
 // your libraries directory. It's obviously not in the git repository :)
 // It should define these:
@@ -22,13 +22,12 @@
 // localizable messages intended to be displayed/sent to usb serial
 #include "aquaNetMessages.h"
 
-#define MAX_SERIAL_INPUT_MESSAGE 200
 // Structure to hold all wifi-related configuration
-#define CONFIG_VERSION 'D'
+#define CONFIG_VERSION 'F'
 #define DEFAULT_AP_SSID "aquaMonitor"    // AP ssid by default, known by all devices, can be changed
 #define DEFAULT_AP_PWD  "aquaPassword"   // 8 CHAR OR MORE !! AP pwd by default so that other devices can connect
 #define DEFAULT_STAT_INTERVAL  300000    // update stats every 5 minutes by default
-#define DEFAULT_ARDUINO_CHECK_INTERVAL  2000    // check incoming message from arduino every 10s by default
+#define DEFAULT_ARDUINO_CHECK_INTERVAL  2000    // check incoming message from arduino every x milliseconds by default
 struct eepromConfig {
   unsigned char version; // Always keep it as first member when modifying this structure
   char statisticsHost[50]; // hostname to send statistics to; e.g. http://www.myStats.com
@@ -49,9 +48,10 @@ MDNSResponder mdns;
 int clientConnected = 0;
 boolean homeWifiConnected = false;
 
+char serialMessage[MAX_SERIAL_INPUT_MESSAGE];
 unsigned long lastStatSent = 0;
 unsigned long lastArduinoCheck = 0;
-char aquaStatus[100];
+char aquaStatus[500]; // Json string containing data from arduino
 
 // return true if current time is after given time + delay
 boolean checkElapsedDelay(unsigned long now, unsigned long lastTime, unsigned long delay) {
@@ -91,7 +91,7 @@ void readConfig() {
     strcpy(config.homePwd, DEFAULT_WIFI_PWD);
     strcpy(config.APSsid, DEFAULT_AP_SSID);
     strcpy(config.APPwd, DEFAULT_AP_PWD);
-
+    strcpy(config.deviceName, "Aquarium");
     config.statisticsInterval = DEFAULT_STAT_INTERVAL; // number of milliseconds between two statistic sending
     config.arduinoCheckInterval = DEFAULT_ARDUINO_CHECK_INTERVAL; // number of milliseconds between two arduino msg checks
 
@@ -113,14 +113,15 @@ void setup(void){
   char message[100];
 
   unsigned int configSize = sizeof(config);
+  serialMessage[0] = 0;
 
-  strcpy(aquaStatus, "Not yet known");
+  strcpy(aquaStatus, "[]");  // No data yet
   EEPROM.begin(configSize);  // Config is read from and stored to EEPROM
   Serial.begin(9600);
   WiFi.mode(WIFI_STA);  // ap could be active from previous time
 
   delay(10000); // delay to connect monitor
-  Serial.println("");
+  Serial.println("Init aquaNet");
   readConfig();
 
   // Connect to home network if any
@@ -151,8 +152,9 @@ void setup(void){
   server.on("/", [](){
     printHTMLPage();
   });
+
   server.on("/msgArduino", [](){
-    // We assume there is only one param
+    // Should be only one param : the command to send to arduino
     char command[200];
     server.arg(0).toCharArray(command, 50);
     sendArduinoCommand(command);
@@ -173,20 +175,18 @@ void setup(void){
   });
 
   server.on("/getData.json", [](){
-    char data[] = "[{ \"name\": \"The Nursery\", \"type\": 0, \"localIP\": \"192.168.0.29\", \"APName\": \"AquaNet\", \"APIP\": \"192.168.4.9\", \"temperature\": 25.2, \"temperatureAlert\": 0, \"minTemperature\": 25, \"maxTemperature\": 27, \"light\": 500, \"lightAlert\": 0, \"minLight\": 0, \"maxLight\": 500, \"waterLevel\": 1, \"power\": 1 }, { \"name\": \"The Jobert\", \"type\": 1, \"localIP\": \"192.168.0.30\", \"APName\": \"AquaNet\", \"APIP\": \"192.168.4.10\", \"temperature\": 24, \"temperatureAlert\": 1, \"minTemperature\": 25, \"maxTemperature\": 27, \"light\": 800, \"lightAlert\": 0, \"minLight\": 700, \"maxLight\": 1024, \"waterLevel\": 1, \"power\": 1 }]";
-    server.send(200, "text/plain", data);
+    server.send(200, "text/plain", aquaStatus);
   });
+
+  // Ask Arduino if it is equipped with GSM
+  sendArduino(REQUEST_IF_GSM);
 
   server.begin();
   Serial.println("HTTP server started");
   //WiFi.printDiag(Serial);
-
-  // Ask Arduino if it is equipped with GSM
-  sendArduino(REQUEST_IF_GSM);
 }
 
 char *processMethod(char *method) {
-
   if(strcmp(method, "status") == 0) {
     return(aquaStatus);
   } else {
@@ -207,7 +207,7 @@ void startAP() {
   // `WiFi.macAddress(mac)` is for STA, `WiFi.softAPmacAddress(mac)` is for AP.
   // `WiFi.localIP()` is for STA, `WiFi.softAPIP()` is for AP.
   // `WiFi.printDiag(Serial)` will print out some diagnostic info
-  Serial.println("Creating AP");
+  Serial.println(CREATING_AP);
   Serial.println(config.APSsid);
   Serial.println(config.APPwd);
   WiFi.mode(WIFI_AP_STA);
@@ -215,55 +215,71 @@ void startAP() {
 }
 
 
-char serialMessage[MAX_SERIAL_INPUT_MESSAGE];
 
 void loop(void) {
-  int now = millis();
-
+  unsigned long now = millis();
+  boolean result ;
   server.handleClient();
   if ((config.statisticsHost[0] !=0) && homeWifiConnected && checkElapsedDelay(now, lastStatSent, config.statisticsInterval/10)) {
     sendArduino(REQUEST_MEASURES);
-    lastStatSent = now;  // Don't wait for actual sending to not request again next loop
+    lastStatSent = now;  // Don't wait for response to not request again next loop
   }
 
-  if(checkElapsedDelay(now, lastArduinoCheck, config.arduinoCheckInterval)) {
-    // Check serial for incoming messages from arduino
-    checkSerial(&Serial, serialMessage, processMessage);
-    lastArduinoCheck = now;
+  if(readFromSerial(&Serial, serialMessage, 50)) {
+    processMessage(serialMessage);
+    serialMessage[0] = 0;
   }
 
 }
 
 // Process a message from the arduino. It should contain two parts separated with ':'
 void processMessage(char *message) {
-  char *prefix;
+  char *colonPosition;
   char *content;
-  prefix = strtok(message, ":");
-  if(prefix != NULL) {
-    content = message + strlen(prefix) + 1;
+
+//Serial.println("ESP GOT ");
+//Serial.println(message);
+
+  colonPosition = strchr(message, ':');
+  if(colonPosition != NULL) {
+    content = colonPosition + 1;
     // Check prefix for what needs to be done
-    if(strcmp(prefix, REQUEST_IF_GSM) == 0) {
+    if(strncmp(message, REQUEST_IF_GSM, strlen(REQUEST_IF_GSM)) == 0) {
       // If module equipped with GSM, start Wifi Access Point
       if(content[0] == '1') {
         startAP();
       } else {
+        Serial.println(CLOSING_AP);
         WiFi.mode(WIFI_STA); // Stop the access point
       }
-    } else if(strcmp(prefix, REQUEST_MEASURES) == 0) {
-      strcpy(aquaStatus, content);
+    } else if(strncmp(message, REQUEST_MEASURES, strlen(REQUEST_MEASURES)) == 0) {
+      // StaticJsonBuffer size : https://rawgit.com/bblanchon/ArduinoJson/master/scripts/buffer-size-calculator.html
+      StaticJsonBuffer<600> jsonBuffer;
+      JsonObject& root = jsonBuffer.parseObject(content);
+      root["name"] = config.deviceName;
+      root["type"] = 0; // TODO
+      root["localIP"] = WiFi.localIP().toString();
+      root["APName"] = config.APSsid;
+      root["APIP"] = WiFi.softAPIP().toString();
+      // V3 will handle several modules => array of data. Already handled by webApp.
+      // Will improve this when implementing V3. Good enough for now
+      strcpy(aquaStatus, "[");
+      char *firstChar = aquaStatus;
+      firstChar++;
+      root.printTo(firstChar, sizeof(aquaStatus) -1);
+      strcat(aquaStatus, "]");
+      Serial.println(aquaStatus);
       sendStat();
     }
   }
-
-
 }
 
 void sendStat() {
-  char request[200];
-  char param[200];
+  char request[2100]; // Todo use String
+  char param[2000];
   if (client.connect(config.statisticsHost, 80)) {
     clientConnected = 1;
-    sprintf(request, "GET %s?stat=%s HTTP/1.1", config.statisticsPath, urlEncode(aquaStatus, param));
+    sprintf(request, "GET %s?stat=%s HTTP/1.1", config.statisticsPath, urlEncode(aquaStatus, param, sizeof(param)));
     Serial.println(request);
     client.println(request);
     sprintf(request, "Host: %s", config.statisticsHost);
@@ -281,14 +297,17 @@ void sendStat() {
 }
 
 // Send a request to Arduino.
-// Requests for esp-arduino conversation start with '#'
+// Requests for esp-arduino specific conversation start with '#'
+// It's possible to send arduino commands with '@' as first character
 // Other messages sent to arduino via Serial will be forwarded to arduino's USB serial
 void sendArduino(char *msg) {
   char message[200];
   if(*msg == '@') {
-    sprintf(message, "%s", msg);  // ESP command sent to arduino, i.e. chkGSM ...
+    // Arduino command. i.e. status, or config
+    sprintf(message, "%s", msg);
   } else {
-    sprintf(message, "#%s", msg); // Arduino command. i.e. status, or config
+    // ESP command sent to arduino, i.e. chkGSM ...
+    sprintf(message, "#%s", msg);
   }
   Serial.println(message);
 }
@@ -302,7 +321,7 @@ void sendArduinoCommand(char *msg) {
   Serial.println(message);
 }
 
-char *urlEncode(char *toEncode, char *encoded) {
+char *urlEncode(char *toEncode, char *encoded, int size) {
   // char to not encode
   char notEncode[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~";
   char *scanIn = toEncode;
@@ -314,8 +333,12 @@ char *urlEncode(char *toEncode, char *encoded) {
     } else {
       char buf[4];
       sprintf(buf, "%%%02X", *scanIn);
-      strcat(scanOut, buf);
-      scanOut += 3;
+    //  if((strlen(encoded) + strlen(buf)) < size +1) {
+        strcat(scanOut, buf);
+        scanOut += 3;
+//      } else {
+//        Serial.println("Message to encode too big");
+//      }
     }
     scanIn ++;
   }

@@ -1,4 +1,5 @@
 #include <HardwareSerial.h>
-#define MAX_SERIAL_INPUT_MESSAGE 161
+#define MAX_SERIAL_INPUT_MESSAGE 600 // some "big" Json strings
 
-void checkSerial(HardwareSerial *serial, char *message, void (*processMsgFunc)(char *));
+boolean readFromSerial(HardwareSerial *serial, char *message, unsigned long timeOut);
+boolean writeToSerial(HardwareSerial *serial, char *message, unsigned long timeOut);

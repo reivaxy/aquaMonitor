@@ -9,35 +9,33 @@ $(document).ready(function() {
         localIP: "",  // IP on the local domestic wifi network
         APName: "",   // Name of the created wifi network
         APIP: "",     // IP on the Access Point created wifi network
-        temperature: 0,
-        temperatureAlert: "no",
-        minTemperature: 0,
-        maxTemperature: 0,
+        temp: 0,
+        tempAlert: "no",
+        minTemp: 0,
+        maxTemp: 0,
         light: 0,
         lightAlert: "no",
         minLight: 0,
         maxLight: 0,
         waterLevel: "high",
         power: "on",         // off, on
-        globalAlert: "no"
+        oneAlert: "no"
       };
       return model;
     },
 
     // Server returns some numeric values, not suited to use as class names
     parse: function(data) {
-      data.globalAlert = "noalert";
-      if(!data.power || !data.waterLevel
-          || data.lightAlert || data.temperatureAlert) {
-        data.globalAlert = 'isalert';
-      }
 
-      data.power = data.power ? "on" : "off";
-      data.waterLevel = data.waterLevel ? "high" : "low";
+      data.power = data.powerAlert ? "off" : "on";
+      data.waterLevel = data.waterLevelAlert ? "low": "high" ;
       data.lightAlert = data.lightAlert ? "isalert" : "noalert";
-      data.temperatureAlert = data.temperatureAlert ? "isalert" : "noalert";
+      data.tempAlert = data.tempAlert ? "isalert" : "noalert";
       data.type = data.type ? "master" : "station";
-
+      data.name = data.name || "Aquarium";
+      data.temp = data.temp/100;
+      data.minTemp = data.minTemp/100;
+      data.maxTemp = data.maxTemp/100;
       return data;
     }
   });
@@ -55,13 +53,13 @@ $(document).ready(function() {
   var AquaNetView = Backbone.View.extend({
     tagName: "div",
     template: _.template('\
-<div class="module <%- type %> <%- globalAlert %>">\
+<div class="module <%- type %> <%- oneAlert %>">\
 <div class="name <%- name %>"><%- name %></div>\
 <div class="localIP"><%- localIP %></div>\
 <div class="APName"><%- APName %></div>\
 <div class="APIP"><span><%- APName %></span><%- APIP %></div>\
-<div class="temperature <%- temperatureAlert %>"><%- temperature %></div>\
-<div class="temperatureRange"><%- minTemperature %> - <%- maxTemperature %></div>\
+<div class="temperature <%- tempAlert %>"><%- temp %></div>\
+<div class="temperatureRange"><%- minTemp %> - <%- maxTemp %></div>\
 <div class="light <%- lightAlert %>"><%- light %></div>\
 <div class="lightRange"><%- minLight %> - <%- maxLight %></div>\
 <div class="waterLevel <%- waterLevel %>"></div>\

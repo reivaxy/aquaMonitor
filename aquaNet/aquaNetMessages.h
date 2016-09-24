@@ -10,3 +10,5 @@
 #define CONNECTED_HOME_NETWORK "Connected %s"
 #define CONNECTION_TIMED_OUT "Wifi time out"
 #define ACCESS_IP "IP: "
+#define CREATING_AP "Creating Access Point"
+#define CLOSING_AP "Closing Access Point"
