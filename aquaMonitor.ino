@@ -333,6 +333,7 @@ void processMessageFromESP(char *message) {
       root["tempAlert"] = measures.temperatureAlert;
       root["minTemp"] = config.temperatureLowThreshold;
       root["maxTemp"] = config.temperatureHighThreshold;
+      root["tempAdj"] = config.temperatureAdjustment;
       root["light"] = measures.light;
       root["lightAlert"] = measures.lightAlert;
       root["minOnLight"] = config.lightOn.minAcceptableValue;

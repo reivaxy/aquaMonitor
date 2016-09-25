@@ -159,6 +159,9 @@ void setup(void){
     server.arg(0).toCharArray(command, 200);
     sendArduinoCommand(command);
     server.send(200, "text/plain", "");
+    // To reflect updates asap
+    sendArduino(REQUEST_MEASURES);
+    lastStatSent = millis();  // Don't wait for response to not request again next loop
   });
 
   server.on("/msgESP", [](){

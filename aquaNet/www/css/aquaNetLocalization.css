@@ -21,6 +21,9 @@
 .temperatureRange::before {
   content: "Temperature range: ";
 }
+.temperatureAdjustment::before {
+  content: "Temperature adjustment: ";
+}
 .light::before {
   content: "Light: ";
 }

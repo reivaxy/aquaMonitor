@@ -1,3 +1,5 @@
+/*Style for icon font*/
+@import 'style.css';
 
 body {
   background: linear-gradient(to top, #1e5799 11%,#7db9e8 74%);
@@ -11,6 +13,7 @@ h1 {
 .module {
   border: 1px solid black;
   margin-bottom: 15px;
+  position: relative;
 }
 
 .name {
@@ -22,31 +25,65 @@ h1 {
 /*Show/hide conditional stuff*/
 
 /*Alert section*/
-.module.isAlert .name{
+.module.isalert .name{
   background-color: red;
 }
 
-.module div.isAlert {
+.module div.isalert {
   background-color: lightpink;
 }
 
 .module div {
   position: relative;
-}
-.module div.editable {
-  background-color: green;
-  position:absolute;
-  top:0;
-  right:0;
-  width:1em;
-  bottom:0;
-  cursor: pointer;
+  padding: 2px;
 }
 
 div.editor {
   display:none;
+  position: absolute;
+  top:0;
+  bottom:0;
+  left:0;
+  right:0;
+  background-color: white;
 }
 
-.onLightRange input, .offLightRange input {
+div.editor input {
+  height: 100%;
+  border:0;
+  background-color: powderblue;
+  margin-right: 4px;
+  position:relative;
+  top:-2px;
   width: 4em;
+  padding-left: 3px;
+}
+
+div.editor button {
+  height: 100%;
+  padding: 0 3px;
+}
+
+div.editor.onLightRange::before,div.editor.offLightRange::before {
+  position: relative;
+  bottom: 2px;
+}
+
+.icon-cog, .icon-pencil, .icon-cancel-circle {
+  right:2px;
+  position: absolute;
+  top:0.20em;
+  cursor: pointer;
+  opacity: 0.5;
+}
+
+.setting {
+  display: none;
+}
+body.showSettings .setting {
+  display: block;
+}
+
+body.showSettings .icon-cog {
+  color: red;
 }

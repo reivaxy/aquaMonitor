@@ -13,10 +13,13 @@ $(document).ready(function() {
         tempAlert: "no",
         minTemp: 0,
         maxTemp: 0,
+        maxAdj: 0,
         light: 0,
         lightAlert: "no",
-        minLight: 0,
-        maxLight: 0,
+        "minOnLight": 0,
+        "maxOnLight": 0,
+        "minOffLight": 0,
+        "maxOffLight": 0,
         waterLevel: "high",
         power: "on",         // off, on
         oneAlert: "no",
@@ -28,6 +31,7 @@ $(document).ready(function() {
     // Server returns some numeric values, not suited to use as class names
     parse: function(data) {
 
+      data.oneAlert = data.oneAlert ? "isalert" : "noalert";
       data.power = data.powerAlert ? "off" : "on";
       data.waterLevel = data.waterLevelAlert ? "low": "high" ;
       data.lightAlert = data.lightAlert ? "isalert" : "noalert";
@@ -37,6 +41,7 @@ $(document).ready(function() {
       data.temp = data.temp/100;
       data.minTemp = data.minTemp/100;
       data.maxTemp = data.maxTemp/100;
+      data.tempAdj = data.tempAdj/100;
       return data;
     }
   });
@@ -55,58 +60,87 @@ $(document).ready(function() {
     tagName: "div",
     template: _.template('\
 <div class="module <%- type %> <%- oneAlert %>">\
-  <div class="name <%- name %>"><%- name %></div>\
+  <div class="name <%- name %>"><%- name %><span class="icon-cog"/></div>\
   <div class="localIP"><%- localIP %></div>\
   <div class="APName"><%- APName %></div>\
   <div class="APIP"><span><%- APName %></span><%- APIP %></div>\
   <div class="temperature <%- tempAlert %>"><%- temp %></div>\
-  <div class="temperatureRange"><%- minTemp %> - <%- maxTemp %></div>\
+  <div data="temperatureRange" class="setting temperatureRange"><%- minTemp %> - <%- maxTemp %><span class="icon-pencil"/>\
+    <div class="editor temperatureRange"><input class="minTemp" value="<%- minTemp %>"/><input class="maxTemp" value="<%- maxTemp %>"/><button class="save"><l/></button><span class="icon-cancel-circle"/></div>\
+  </div>\
+  <div data="temperatureAdjustment" class="setting temperatureAdjustment"><%- tempAdj %><span class="icon-pencil"/>\
+    <div class="editor temperatureAdjustment"><input class="tempAdj" value="<%- tempAdj %>"/><button class="save"><l/></button><span class="icon-cancel-circle"/></div>\
+  </div>\
   <div class="light <%- lightAlert %>"><%- light %></div>\
-  <div class="onLightRange"><%- minOnLight %> - <%- maxOnLight %><div class="editable" data="onLightRange"> </div></div>\
-  <div class="offLightRange"><%- minOffLight %> - <%- maxOffLight %><div class="editable" data="offLightRange"> </div></div>\
+  <div data="onLightRange" class="setting onLightRange"><%- minOnLight %> - <%- maxOnLight %><span class="icon-pencil"/>\
+    <div class="editor onLightRange"><input class="minOnLight" value="<%- minOnLight %>"/><input class="maxOnLight" value="<%- maxOnLight %>"/><button class="save"><l/></button><span class="icon-cancel-circle"/></div>\
+  </div>\
+  <div data="offLightRange" class="setting offLightRange"><%- minOffLight %> - <%- maxOffLight %><span class="icon-pencil"/>\
+    <div class="editor offLightRange"><input class="minOffLight" value="<%- minOffLight %>"/><input class="maxOffLight" value="<%- maxOffLight %>"/><button class="save"><l/></button><span class="icon-cancel-circle"/></div>\
+  </div>\
   <div class="waterLevel <%- waterLevel %>"></div>\
   <div class="power <%- power %>"></div>\
   <div class="date"><%- date %></div>\
-  <div class="editor onLightRange"><input class="minOnLight" value="<%- minOnLight %>"/><input class="maxOnLight" value="<%- maxOnLight %>"/><button class="save" data="onLightRange"><l/></button></div>\
-  <div class="editor offLightRange"><input class="minOffLight" value="<%- minOffLight %>"/><input class="maxOffLight" value="<%- maxOffLight %>"/><button class="save" data="offLightRange"><l/></button></div>\
 </div>'),
     initialize: function() {
       this.listenTo(this.model, 'change', this.render);
     },
     events: {
-      "click .editable"   : "openEditor",
-      "click .module": "closeEditors",
-      "click button": "saveData"
+      "click button": "saveData",
+      "click .icon-pencil": "openEditor",
+      "click .icon-cancel-circle": "closeEditors",
+      "click .icon-cog": "toggleSettings",
+      "keyup .module": "keyUp"
     },
     render: function() {
       this.$el.html(this.template(this.model.toJSON()));
       this.$el.addClass("col-xs-12 col-sm-4 col-md-4 col-lg-3") ;
       return this;
     },
-
+    keyUp: function(e) {
+      if(e.keyCode == 27) {
+        this.closeEditors();
+      }
+    },
     openEditor: function(e) {
-      var data = e.target.getAttribute("data");
+      $('.editor').hide();
+      var data = $(e.currentTarget).parents("div.setting").attr("data");
       $('.editor.' + data).show();
+      $('.editor.' + data + ' input').first().focus().select();
       e.stopPropagation();
     },
+    toggleSettings: function() {
+      this.closeEditors();
+      $("body").toggleClass("showSettings");
+    },
     closeEditors: function(e) {
-      //$('.editor').hide();
+      $('.editor').hide();
     },
     saveData: function(e) {
-      var message= "";
-      var data = e.target.getAttribute("data");
+      this.closeEditors();
+      var message = "";
+      var data = $(e.target).parents("div.setting").attr("data");
       var url = document.location.href.split('/');
       url.pop();
       url = url.join('/') + "/msgArduino";
       var params = {};
       var send = false;
+      // TODO: need to use localized message... or new "technical" messages not localized ? => modif arduino code, add many messages... :(
       switch(data) {
         case "onLightRange":
-          params.data = "light limits on: " + $('input.minOnLight').val() + '-' + $('input.maxOnLight').val();
+          params.command = "light limits on: " + $('input.minOnLight').val() + '-' + $('input.maxOnLight').val();
           send = true;
           break;
         case "offLightRange":
-          params.data = "light limits off: " + $('input.minOffLight').val() + '-' + $('input.maxOffLight').val();
+          params.command = "light limits off: " + $('input.minOffLight').val() + '-' + $('input.maxOffLight').val();
+          send = true;
+          break;
+        case "temperatureRange":
+          params.command = "temp " + parseFloat($('input.minTemp').val())*100 + ' ' + parseFloat($('input.maxTemp').val())*100;
+          send = true;
+          break;
+        case "temperatureAdjustment":
+          params.command = "temp adj " + parseFloat($('input.tempAdj').val()*100);
           send = true;
           break;
       }
