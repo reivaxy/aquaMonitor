@@ -18,8 +18,10 @@ $(document).ready(function() {
         lightAlert: "no",
         "minOnLight": 0,
         "maxOnLight": 0,
+        "lightOn": "",
         "minOffLight": 0,
         "maxOffLight": 0,
+        "lightOff": "",
         waterLevel: "high",
         power: "on",         // off, on
         oneAlert: "no",
@@ -59,28 +61,36 @@ $(document).ready(function() {
     tagName: "div",
     template: _.template('\
 <div class="module <%- type %> <%- oneAlert %>" moduleId="<%- id %>">\
-  <div class="name"><%- id %><div class="commands"><span class="icon icon-floppy-disk"/><span class="icon icon-cog"/><span class="icon icon-loop2"/></div></div>\
-  <div class="localIP"><%- localIP %></div>\
-  <div class="APName"><%- APName %></div>\
-  <div class="APIP"><span><%- APName %></span><%- APIP %></div>\
-  <div class="temperature <%- tempAlert %>"><%- temp %></div>\
+  <div class="name"><%- id %><div class="commands"><span class="icon icon-cog"/><span class="icon icon-loop2"/><span class="icon icon-floppy-disk"/></div></div>\
+  <div class="temperature <%- tempAlert %>"><%- temp %><span class="icon icon-sad"/></div>\
   <div data="temperatureRange" class="setting temperatureRange"><%- minTemp %> - <%- maxTemp %><span class="icon icon-pencil"/>\
     <div class="editor temperatureRange"><input class="minTemp" value="<%- minTemp %>"/><input class="maxTemp" value="<%- maxTemp %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
   </div>\
   <div data="temperatureAdjustment" class="setting temperatureAdjustment"><%- tempAdj %><span class="icon icon-pencil"/>\
     <div class="editor temperatureAdjustment"><input class="tempAdj" value="<%- tempAdj %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
   </div>\
-  <div class="light <%- lightAlert %>"><%- light %></div>\
+  <div class="light <%- lightAlert %>"><%- light %><span class="icon icon-sad"/></div>\
+  <div data="lightOn" class="setting lightOn"><%- lightOn %><span class="icon icon-pencil"/>\
+    <div class="editor lightOn"><input class="lightOn" value="<%- lightOn %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
+  </div>\
   <div data="onLightRange" class="setting onLightRange"><%- minOnLight %> - <%- maxOnLight %><span class="icon icon-pencil"/>\
     <div class="editor onLightRange"><input class="minOnLight" value="<%- minOnLight %>"/><input class="maxOnLight" value="<%- maxOnLight %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
+  </div>\
+  <div data="lightOff" class="setting lightOff"><%- lightOff %><span class="icon icon-pencil"/>\
+    <div class="editor lightOff"><input class="lightOff" value="<%- lightOff %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
   </div>\
   <div data="offLightRange" class="setting offLightRange"><%- minOffLight %> - <%- maxOffLight %><span class="icon icon-pencil"/>\
     <div class="editor offLightRange"><input class="minOffLight" value="<%- minOffLight %>"/><input class="maxOffLight" value="<%- maxOffLight %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
   </div>\
-  <div class="waterLevel <%- waterLevel %>"></div>\
-  <div class="power <%- power %>"></div>\
+  <div class="waterLevel <%- waterLevel %>"><span class="icon icon-sad"/></div>\
+  <div class="power <%- power %>"><span class="icon icon-sad"/></div>\
   <div data="date" class="setting date"><%- date %><span class="icon icon-pencil"/>\
     <div class="editor date"><input class="date" value="<%- date %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
+  </div>\
+  <hr/>\
+  <div class="footer localIP"><%- localIP %></div>\
+  <div class="footer APName"><%- APName %></div>\
+  <div class="footer APIP"><span><%- APName %></span><%- APIP %></div>\
 </div>'),
     initialize: function() {
       this.listenTo(this.model, 'change', this.render);
@@ -182,6 +192,18 @@ $(document).ready(function() {
           this.model.set('date', date);
           send = true;
           break;
+        case "lightOn":
+          var date = parent.find('input.lightOn').val();
+          params.command = "light schedule on: " + date;
+          this.model.set('lightOn', date);
+          send = true;
+          break;
+        case "lightOff":
+          var date = parent.find('input.lightOff').val();
+          params.command = "light schedule off: " + date;
+          this.model.set('lightOff', date);
+          send = true;
+          break;
       }
       if(send) {
         this.send(params);
@@ -217,7 +239,7 @@ $(document).ready(function() {
 
   var app = new AppView({model: modules, id: "modules"});
   window.app = app;
-  setInterval(fetch, 10000);
+  setInterval(fetch, 31000);
   fetch();
 
   function fetch() {

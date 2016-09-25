@@ -30,8 +30,14 @@
 .onLightRange::before {
   content: "'ON' Light range: ";
 }
+.lightOn::before {
+  content: "'ON' Light schedule: ";
+}
 .offLightRange::before {
   content: "'OFF' Light range: ";
+}
+.lightOff::before {
+  content: "'OFF' Light schedule: ";
 }
 .waterLevel::before {
   content: "Water level: ";

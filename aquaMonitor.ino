@@ -322,7 +322,8 @@ void processMessageFromESP(char *message) {
       Serial1.println(answer);
     } else if(strncmp(firstChar, REQUEST_MEASURES, strlen(REQUEST_MEASURES)) == 0) {
       char date[40]; // No need for 40, unless there is no rtc connected :)
-      getCurrentDate(date);
+      char lightOn[15];
+      char lightOff[15]; // No need for 40, unless there is no rtc connected :)
       Serial.println("ESP wants measures");
       // esp wants to know measures to log them
       // We'll pass a json object using ArduinoJson library by Benoît Blanchon
@@ -340,9 +341,14 @@ void processMessageFromESP(char *message) {
       root["maxOnLight"] = config.lightOn.maxAcceptableValue;
       root["minOffLight"] = config.lightOff.minAcceptableValue;
       root["maxOffLight"] = config.lightOff.maxAcceptableValue;
+      sprintf(lightOn, "%02d:%02d-%02d:%02d", config.lightOn.startHour, config.lightOn.startMinute, config.lightOn.endHour, config.lightOn.endMinute);
+      root["lightOn"] = lightOn;
+      sprintf(lightOff, "%02d:%02d-%02d:%02d", config.lightOff.startHour, config.lightOff.startMinute, config.lightOff.endHour, config.lightOff.endMinute);
+      root["lightOff"] = lightOff;
       root["waterLevelAlert"] = measures.waterLevelAlert;
       root["powerAlert"] = measures.powerAlert;
       root["oneAlert"] = measures.oneAlert;
+      getCurrentDate(date);
       root["date"] = date;
       sprintf(answer, "%s:", REQUEST_MEASURES);
       firstChar = answer;
@@ -881,7 +887,7 @@ void sendAbout(char *toNumber) {
 // Date as string but not localized (for ESP)
 void getCurrentDate(char *message) {
   clock.getTime();
-  sprintf(message, "%4d/%2d/%2d %2d:%2d",
+  sprintf(message, "%4d/%02d/%02d %02d:%02d",
      clock.year+2000, clock.month, clock.dayOfMonth,
      clock.hour, clock.minute);
 
