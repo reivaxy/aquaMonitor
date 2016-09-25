@@ -243,7 +243,7 @@ void processMessage(char *message) {
       // StaticJsonBuffer size : https://rawgit.com/bblanchon/ArduinoJson/master/scripts/buffer-size-calculator.html
       StaticJsonBuffer<600> jsonBuffer;
       JsonObject& root = jsonBuffer.parseObject(content);
-      root["name"] = config.deviceName;
+      root["id"] = config.deviceName;
       root["type"] = 0; // TODO
       root["localIP"] = WiFi.localIP().toString();
       root["APName"] = config.APSsid;

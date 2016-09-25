@@ -4,7 +4,7 @@ $(document).ready(function() {
   var AquaNetModule = Backbone.Model.extend({
     defaults: function() {
       var model = {
-        name: "",     // Name of the module
+        id: "",     // Name of the module
         type: "master", // master or station
         localIP: "",  // IP on the local domestic wifi network
         APName: "",   // Name of the created wifi network
@@ -37,8 +37,6 @@ $(document).ready(function() {
       data.lightAlert = data.lightAlert ? "isalert" : "noalert";
       data.tempAlert = data.tempAlert ? "isalert" : "noalert";
       data.type = data.type ? "master" : "station";
-      data.name = data.name || "Aquarium";
-      data.id = data.name;
       data.temp = data.temp/100;
       data.minTemp = data.minTemp/100;
       data.maxTemp = data.maxTemp/100;
@@ -61,7 +59,7 @@ $(document).ready(function() {
     tagName: "div",
     template: _.template('\
 <div class="module <%- type %> <%- oneAlert %>" moduleId="<%- id %>">\
-  <div class="name"><%- name %><div class="commands"><span class="icon icon-floppy-disk"/><span class="icon icon-cog"/><span class="icon icon-loop2"/></div></div>\
+  <div class="name"><%- id %><div class="commands"><span class="icon icon-floppy-disk"/><span class="icon icon-cog"/><span class="icon icon-loop2"/></div></div>\
   <div class="localIP"><%- localIP %></div>\
   <div class="APName"><%- APName %></div>\
   <div class="APIP"><span><%- APName %></span><%- APIP %></div>\
@@ -81,18 +79,19 @@ $(document).ready(function() {
   </div>\
   <div class="waterLevel <%- waterLevel %>"></div>\
   <div class="power <%- power %>"></div>\
-  <div class="date"><%- date %></div>\
+  <div data="date" class="setting date"><%- date %><span class="icon icon-pencil"/>\
+    <div class="editor date"><input class="date" value="<%- date %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
 </div>'),
     initialize: function() {
       this.listenTo(this.model, 'change', this.render);
     },
     events: {
-      "click button": "sendData",
+      "click button": "saveSetting",
       "click .icon-pencil": "openEditor",
       "click .icon-cancel-circle": "closeEditors",
       "click .icon-cog": "toggleSettings",
       "click .icon-loop2": "refreshData",
-      "click .icon-floppy-disk": "save",
+      "click .icon-floppy-disk": "saveConfig",
       "keyup .module": "keyUp"
     },
     render: function() {
@@ -131,11 +130,11 @@ $(document).ready(function() {
         }
       });
     },
-    save: function() {
+    saveConfig: function() {
       this.send({command: "save"});
     },
 
-    sendData: function(e) {
+    saveSetting: function(e) {
       this.closeEditors();
       var message = "";
       // when handling several modules, need to make sure we target the right one's DOM
@@ -175,6 +174,12 @@ $(document).ready(function() {
           var tempAdj = parseFloat(parent.find('input.tempAdj').val());
           params.command = "temp adj " + tempAdj * 100;
           this.model.set('tempAdj', tempAdj);
+          send = true;
+          break;
+        case "date":
+          var date = parent.find('input.date').val();
+          params.command = "time " + date;
+          this.model.set('date', date);
           send = true;
           break;
       }

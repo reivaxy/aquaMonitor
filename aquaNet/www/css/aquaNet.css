@@ -66,6 +66,10 @@ div.editor input {
   padding-left: 3px;
 }
 
+div.editor input.date {
+  width: 20em;
+}
+
 div.editor button {
   height: 100%;
   padding: 0 3px;
@@ -83,9 +87,21 @@ div.editor.onLightRange::before,div.editor.offLightRange::before {
   float:right;
 }
 
+.icon.icon-pencil {
+  display: none;
+}
+body.showSettings .icon.icon-pencil {
+  display: block;
+}
+
 .setting {
   display: none;
 }
+
+.date.setting {
+  display: block;
+}
+
 body.showSettings .setting {
   display: block;
 }

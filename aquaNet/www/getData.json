@@ -5,9 +5,9 @@
   "localIP": "192.168.0.30",
   "APName": "AquaNet",
   "APIP": "192.168.4.10",
-  "temp": 2600,
+  "temp": 2200,
   "tempAlert": true,
-  "minTemp": 2500,
+  "minTemp": 2000,
   "maxTemp": 2700,
   "tempAdj": 50,
   "light": 800,
@@ -19,7 +19,7 @@
   "waterLevelAlert": false,
   "powerAlert": false,
   "oneAlert": true,
-  "date": "2016-09-25 09:14"
+  "date": "2016/09/25 09:14"
 }, {
   "name": "Nursery",
   "id": "Nursery",
@@ -41,5 +41,5 @@
   "waterLevelAlert": false,
   "powerAlert": false,
   "oneAlert": false,
-  "date": "2016-09-25 09:14"
+  "date": "2016/09/25 09:14"
 }]
