@@ -117,7 +117,7 @@ void setup(void){
 
   strcpy(aquaStatus, "[]");  // No data yet
   EEPROM.begin(configSize);  // Config is read from and stored to EEPROM
-  Serial.begin(9600);
+  Serial.begin(115200);
   WiFi.mode(WIFI_STA);  // ap could be active from previous time
 
   delay(10000); // delay to connect monitor
@@ -156,22 +156,17 @@ void setup(void){
   server.on("/msgArduino", [](){
     // Should be only one param : the command to send to arduino
     char command[200];
-    server.arg(0).toCharArray(command, 50);
+    server.arg(0).toCharArray(command, 200);
     sendArduinoCommand(command);
-    printHTMLPage();
+    server.send(200, "text/plain", "");
   });
+
   server.on("/msgESP", [](){
     // We assume there is only one param
     char command[200];
-    server.arg(0).toCharArray(command, 50);
+    server.arg(0).toCharArray(command, 200);
     processMessage(command);
-    printHTMLPage();
-  });
-  server.on("/method", [](){
-    // for now there is only one param
-    char command[200];
-    server.arg(0).toCharArray(command, 50);
-    server.send(200, "text/plain", processMethod(command));
+    server.send(200, "text/plain", "");
   });
 
   server.on("/getData.json", [](){
@@ -184,14 +179,6 @@ void setup(void){
   server.begin();
   Serial.println("HTTP server started");
   //WiFi.printDiag(Serial);
-}
-
-char *processMethod(char *method) {
-  if(strcmp(method, "status") == 0) {
-    return(aquaStatus);
-  } else {
-    return "";
-  }
 }
 
 void printHTMLPage() {
@@ -225,7 +212,7 @@ void loop(void) {
     lastStatSent = now;  // Don't wait for response to not request again next loop
   }
 
-  if(readFromSerial(&Serial, serialMessage, 50)) {
+  if(readFromSerial(&Serial, serialMessage, 500)) {
     processMessage(serialMessage);
     serialMessage[0] = 0;
   }
@@ -236,9 +223,6 @@ void loop(void) {
 void processMessage(char *message) {
   char *colonPosition;
   char *content;
-
-//Serial.println("ESP GOT ");
-//Serial.println(message);
 
   colonPosition = strchr(message, ':');
   if(colonPosition != NULL) {
@@ -268,19 +252,21 @@ void processMessage(char *message) {
       firstChar++;
       root.printTo(firstChar, sizeof(aquaStatus) -1);
       strcat(aquaStatus, "]");
-      Serial.println(aquaStatus);
+      Serial.println("");
+      //writeToSerial(&Serial, aquaStatus, 500);
       sendStat();
     }
   }
 }
 
 void sendStat() {
+return;
   char request[2100]; // Todo use String
   char param[2000];
   if (client.connect(config.statisticsHost, 80)) {
     clientConnected = 1;
     sprintf(request, "GET %s?stat=%s HTTP/1.1", config.statisticsPath, urlEncode(aquaStatus, param, sizeof(param)));
-    Serial.println(request);
+    Serial.println("Logged Stats");
     client.println(request);
     sprintf(request, "Host: %s", config.statisticsHost);
     client.println(request);

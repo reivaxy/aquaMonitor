@@ -19,7 +19,8 @@ $(document).ready(function() {
         maxLight: 0,
         waterLevel: "high",
         power: "on",         // off, on
-        oneAlert: "no"
+        oneAlert: "no",
+        date: ""
       };
       return model;
     },
@@ -54,25 +55,69 @@ $(document).ready(function() {
     tagName: "div",
     template: _.template('\
 <div class="module <%- type %> <%- oneAlert %>">\
-<div class="name <%- name %>"><%- name %></div>\
-<div class="localIP"><%- localIP %></div>\
-<div class="APName"><%- APName %></div>\
-<div class="APIP"><span><%- APName %></span><%- APIP %></div>\
-<div class="temperature <%- tempAlert %>"><%- temp %></div>\
-<div class="temperatureRange"><%- minTemp %> - <%- maxTemp %></div>\
-<div class="light <%- lightAlert %>"><%- light %></div>\
-<div class="lightRange"><%- minLight %> - <%- maxLight %></div>\
-<div class="waterLevel <%- waterLevel %>"></div>\
-<div class="power <%- power %>"></div>\
+  <div class="name <%- name %>"><%- name %></div>\
+  <div class="localIP"><%- localIP %></div>\
+  <div class="APName"><%- APName %></div>\
+  <div class="APIP"><span><%- APName %></span><%- APIP %></div>\
+  <div class="temperature <%- tempAlert %>"><%- temp %></div>\
+  <div class="temperatureRange"><%- minTemp %> - <%- maxTemp %></div>\
+  <div class="light <%- lightAlert %>"><%- light %></div>\
+  <div class="onLightRange"><%- minOnLight %> - <%- maxOnLight %><div class="editable" data="onLightRange"> </div></div>\
+  <div class="offLightRange"><%- minOffLight %> - <%- maxOffLight %><div class="editable" data="offLightRange"> </div></div>\
+  <div class="waterLevel <%- waterLevel %>"></div>\
+  <div class="power <%- power %>"></div>\
+  <div class="date"><%- date %></div>\
+  <div class="editor onLightRange"><input class="minOnLight" value="<%- minOnLight %>"/><input class="maxOnLight" value="<%- maxOnLight %>"/><button class="save" data="onLightRange"><l/></button></div>\
+  <div class="editor offLightRange"><input class="minOffLight" value="<%- minOffLight %>"/><input class="maxOffLight" value="<%- maxOffLight %>"/><button class="save" data="offLightRange"><l/></button></div>\
 </div>'),
     initialize: function() {
       this.listenTo(this.model, 'change', this.render);
     },
-
+    events: {
+      "click .editable"   : "openEditor",
+      "click .module": "closeEditors",
+      "click button": "saveData"
+    },
     render: function() {
       this.$el.html(this.template(this.model.toJSON()));
       this.$el.addClass("col-xs-12 col-sm-4 col-md-4 col-lg-3") ;
       return this;
+    },
+
+    openEditor: function(e) {
+      var data = e.target.getAttribute("data");
+      $('.editor.' + data).show();
+      e.stopPropagation();
+    },
+    closeEditors: function(e) {
+      //$('.editor').hide();
+    },
+    saveData: function(e) {
+      var message= "";
+      var data = e.target.getAttribute("data");
+      var url = document.location.href.split('/');
+      url.pop();
+      url = url.join('/') + "/msgArduino";
+      var params = {};
+      var send = false;
+      switch(data) {
+        case "onLightRange":
+          params.data = "light limits on: " + $('input.minOnLight').val() + '-' + $('input.maxOnLight').val();
+          send = true;
+          break;
+        case "offLightRange":
+          params.data = "light limits off: " + $('input.minOffLight').val() + '-' + $('input.maxOffLight').val();
+          send = true;
+          break;
+      }
+      if(send) {
+        $.ajax(url, {
+          complete: function() {
+            fetch();
+          },
+          data: params
+        });
+      }
     }
   });
 
@@ -89,17 +134,23 @@ $(document).ready(function() {
       this.$("#module-list").append(view.render().el);
     },
     addAll: function() {
+      this.$("#module-list").empty();
       modules.each(this.addOne, this);
     }
   });
 
   var app = new AppView;
-  modules.fetch({
-    reset: true,
-    error: function(collection, response, options) {
-      debugger;
-    }
-  });
+  //setInterval(fetch, 10000);
+  fetch();
+
+  function fetch() {
+    modules.fetch({
+      reset: true,
+      error: function(collection, response, options) {
+        debugger;
+      }
+    });
+  }
 
 });
 

@@ -171,7 +171,7 @@ void setup(void) {
   serialMessage[0] = 0;
   serialMessageFromESP[0] = 0;
   Serial.begin(9600);
-  Serial1.begin(9600);
+  Serial1.begin(115200);
 
   // Init pin with the level detector as input
   pinMode(LEVEL_PIN, INPUT);
@@ -278,13 +278,13 @@ void loop(void) {
   }
 
   // Check USB serial for incoming messages
-  if(readFromSerial(&Serial, serialMessage, 50)) {
+  if(readFromSerial(&Serial, serialMessage, 500)) {
     processMessageFromSerial(serialMessage);
     serialMessage[0] = 0;
   }
 
   // Check serial1 for incoming messages from wifi module
-  if(readFromSerial(&Serial1, serialMessageFromESP, 50)) {
+  if(readFromSerial(&Serial1, serialMessageFromESP, 500)) {
     processMessageFromESP(serialMessageFromESP);
     serialMessageFromESP[0] = 0;
   }
@@ -307,6 +307,7 @@ void processMessageFromESP(char *message) {
     // The message sent by ESP is actually a command for the arduino like the one it gets from
     // the usb serial or sms
     firstChar++; // check after first # char
+    Serial.println(firstChar);
     processMessageFromSerial(firstChar);
   } else if(*firstChar == '#') {
     // The message sent by ESP is a specific ESP request
@@ -316,41 +317,46 @@ void processMessageFromESP(char *message) {
       content = colonPosition + 1;
     }
     if(strncmp(firstChar, REQUEST_IF_GSM, strlen(REQUEST_IF_GSM)) == 0) {
-    Serial.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
       // esp wants to know if module is equipped with GSM
       sprintf(answer, "%s:%d", REQUEST_IF_GSM, gsmEnabled);
       Serial1.println(answer);
     } else if(strncmp(firstChar, REQUEST_MEASURES, strlen(REQUEST_MEASURES)) == 0) {
+      char date[40]; // No need for 40, unless there is no rtc connected :)
+      getCurrentDate(date);
       Serial.println("ESP wants measures");
       // esp wants to know measures to log them
       // We'll pass a json object using ArduinoJson library by Benoît Blanchon
       // size : https://rawgit.com/bblanchon/ArduinoJson/master/scripts/buffer-size-calculator.html
       StaticJsonBuffer<400> jsonBuffer;
       JsonObject& root = jsonBuffer.createObject();
-      boolean result;
       root["temp"] = measures.temperature;
       root["tempAlert"] = measures.temperatureAlert;
       root["minTemp"] = config.temperatureLowThreshold;
       root["maxTemp"] = config.temperatureHighThreshold;
       root["light"] = measures.light;
       root["lightAlert"] = measures.lightAlert;
-      // TODO : need to handle appropriate light Schedule for current time...
-      root["minLight"] = config.lightOn.minAcceptableValue;
-      root["maxLight"] = config.lightOn.maxAcceptableValue;
+      root["minOnLight"] = config.lightOn.minAcceptableValue;
+      root["maxOnLight"] = config.lightOn.maxAcceptableValue;
+      root["minOffLight"] = config.lightOff.minAcceptableValue;
+      root["maxOffLight"] = config.lightOff.maxAcceptableValue;
       root["waterLevelAlert"] = measures.waterLevelAlert;
       root["powerAlert"] = measures.powerAlert;
       root["oneAlert"] = measures.oneAlert;
+      root["date"] = date;
       sprintf(answer, "%s:", REQUEST_MEASURES);
       firstChar = answer;
       firstChar += strlen(answer);
       root.printTo(firstChar, sizeof(answer) - strlen(answer));      // ok, not pretty...
-      Serial1.println(answer);
-      //result = writeToSerial(&Serial1, answer, 100);
+      //Serial1.println(answer);
+      //Serial.println(answer);
+      //writeToSerial(&Serial, answer, 500);
+      writeToSerial(&Serial1, answer, 500);
     }
 
   } else {
     // The message sent by ESP should just be sent to USB serial
-    Serial.println(message);
+    //Serial.println(message);
+    writeToSerial(&Serial, message, 500);
   }
 }
 
@@ -871,13 +877,21 @@ void sendAbout(char *toNumber) {
   sendSMS(toNumber, getProgMemMsg(BUILD_MSG));
 }
 
+// Date as string but not localized (for ESP)
+void getCurrentDate(char *message) {
+  clock.getTime();
+  sprintf(message, "%4d/%2d/%2d %2d:%2d",
+     clock.year+2000, clock.month, clock.dayOfMonth,
+     clock.hour, clock.minute);
+
+}
+
 // Log config to Serial console, and optionally send by sms
 void displayConfig(boolean sendSMS, char *toNumber) {
   unsigned char i;
   char message[160];
   char strFlags[5];
   char space[] = ", ";
-  clock.getTime();
   if(!gsmEnabled || (toNumber[0] == 0)) {
     sendSMS = false;
   }
@@ -889,10 +903,11 @@ void displayConfig(boolean sendSMS, char *toNumber) {
     sms.print(message);
     sms.print(space);
   }
-
+  clock.getTime();
   sprintf(message, getProgMemMsg(CURRENT_DATE_FORMAT_MSG),
      clock.year+2000, clock.month, clock.dayOfMonth,
      clock.hour, clock.minute);
+
   Serial.println(message);
   if(sendSMS) {
     sms.print(message);

@@ -39,20 +39,28 @@ boolean readFromSerial(HardwareSerial *serial, char *message, unsigned long time
 }
 
 // Write to serial, insuring message is read to not overload the buffer
-boolean writeToSerial(HardwareSerial *serial, char *message, long int timeOut) {
+boolean writeToSerial(HardwareSerial *serial, char *message, unsigned long timeOut) {
   char *charPtr;
   int length;
   unsigned long now = millis();
   charPtr = message;
+  int count;
   while(*charPtr) {
-    if(serial->availableForWrite()) {
-      serial->write(charPtr++, 1);
+    count = serial->availableForWrite();
+    if(count > 0) {
+      if(strlen(charPtr) < count) {
+        count = strlen(charPtr);
+      }
+      serial->write(charPtr, count);
+      charPtr += count;
     } else {
       if((millis() - now) > timeOut) {
         //Serial.println("Time out writing on serial");
+        serial->write(0x0A); // line feed to end message
         return false;
       }
     }
   }
-  serial->write(0x10); // line feed to end message
+  serial->write(0x0A); // line feed to end message
+  return true;
 }

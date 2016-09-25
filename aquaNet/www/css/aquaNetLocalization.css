@@ -24,8 +24,11 @@
 .light::before {
   content: "Light: ";
 }
-.lightRange::before {
-  content: "Light range: ";
+.onLightRange::before {
+  content: "'ON' Light range: ";
+}
+.offLightRange::before {
+  content: "'OFF' Light range: ";
 }
 .waterLevel::before {
   content: "Water level: ";
@@ -44,4 +47,8 @@
 }
 .power.off::after {
   content: "Off";
+}
+
+button.save l::after {
+  content: "Save"
 }

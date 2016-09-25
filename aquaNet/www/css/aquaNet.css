@@ -29,3 +29,24 @@ h1 {
 .module div.isAlert {
   background-color: lightpink;
 }
+
+.module div {
+  position: relative;
+}
+.module div.editable {
+  background-color: green;
+  position:absolute;
+  top:0;
+  right:0;
+  width:1em;
+  bottom:0;
+  cursor: pointer;
+}
+
+div.editor {
+  display:none;
+}
+
+.onLightRange input, .offLightRange input {
+  width: 4em;
+}
