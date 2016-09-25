@@ -4,6 +4,7 @@
 body {
   background: linear-gradient(to top, #1e5799 11%,#7db9e8 74%);
   padding: 10px;
+  font-weight: bold;
 }
 
 h1 {
@@ -26,9 +27,15 @@ h1 {
 
 /*Alert section*/
 .module.isalert .name{
-  background-color: red;
+  background-color: lightpink;
 }
 
+div.name div.commands {
+  position: absolute;
+  top:3px;
+  bottom:0;
+  right:0;
+}
 .module div.isalert {
   background-color: lightpink;
 }
@@ -69,12 +76,11 @@ div.editor.onLightRange::before,div.editor.offLightRange::before {
   bottom: 2px;
 }
 
-.icon-cog, .icon-pencil, .icon-cancel-circle {
-  right:2px;
-  position: absolute;
-  top:0.20em;
+.icon {
+  margin-right:8px;
   cursor: pointer;
   opacity: 0.5;
+  float:right;
 }
 
 .setting {

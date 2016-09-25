@@ -13,7 +13,7 @@ $(document).ready(function() {
         tempAlert: "no",
         minTemp: 0,
         maxTemp: 0,
-        maxAdj: 0,
+        tempAdj: 0,
         light: 0,
         lightAlert: "no",
         "minOnLight": 0,
@@ -38,6 +38,7 @@ $(document).ready(function() {
       data.tempAlert = data.tempAlert ? "isalert" : "noalert";
       data.type = data.type ? "master" : "station";
       data.name = data.name || "Aquarium";
+      data.id = data.name;
       data.temp = data.temp/100;
       data.minTemp = data.minTemp/100;
       data.maxTemp = data.maxTemp/100;
@@ -53,30 +54,30 @@ $(document).ready(function() {
     model: AquaNetModule,
     url: url
   });
-
   var modules = new AquaNetList;
+  window.modules = modules;
 
   var AquaNetView = Backbone.View.extend({
     tagName: "div",
     template: _.template('\
-<div class="module <%- type %> <%- oneAlert %>">\
-  <div class="name <%- name %>"><%- name %><span class="icon-cog"/></div>\
+<div class="module <%- type %> <%- oneAlert %>" moduleId="<%- id %>">\
+  <div class="name"><%- name %><div class="commands"><span class="icon icon-floppy-disk"/><span class="icon icon-cog"/><span class="icon icon-loop2"/></div></div>\
   <div class="localIP"><%- localIP %></div>\
   <div class="APName"><%- APName %></div>\
   <div class="APIP"><span><%- APName %></span><%- APIP %></div>\
   <div class="temperature <%- tempAlert %>"><%- temp %></div>\
-  <div data="temperatureRange" class="setting temperatureRange"><%- minTemp %> - <%- maxTemp %><span class="icon-pencil"/>\
-    <div class="editor temperatureRange"><input class="minTemp" value="<%- minTemp %>"/><input class="maxTemp" value="<%- maxTemp %>"/><button class="save"><l/></button><span class="icon-cancel-circle"/></div>\
+  <div data="temperatureRange" class="setting temperatureRange"><%- minTemp %> - <%- maxTemp %><span class="icon icon-pencil"/>\
+    <div class="editor temperatureRange"><input class="minTemp" value="<%- minTemp %>"/><input class="maxTemp" value="<%- maxTemp %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
   </div>\
-  <div data="temperatureAdjustment" class="setting temperatureAdjustment"><%- tempAdj %><span class="icon-pencil"/>\
-    <div class="editor temperatureAdjustment"><input class="tempAdj" value="<%- tempAdj %>"/><button class="save"><l/></button><span class="icon-cancel-circle"/></div>\
+  <div data="temperatureAdjustment" class="setting temperatureAdjustment"><%- tempAdj %><span class="icon icon-pencil"/>\
+    <div class="editor temperatureAdjustment"><input class="tempAdj" value="<%- tempAdj %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
   </div>\
   <div class="light <%- lightAlert %>"><%- light %></div>\
-  <div data="onLightRange" class="setting onLightRange"><%- minOnLight %> - <%- maxOnLight %><span class="icon-pencil"/>\
-    <div class="editor onLightRange"><input class="minOnLight" value="<%- minOnLight %>"/><input class="maxOnLight" value="<%- maxOnLight %>"/><button class="save"><l/></button><span class="icon-cancel-circle"/></div>\
+  <div data="onLightRange" class="setting onLightRange"><%- minOnLight %> - <%- maxOnLight %><span class="icon icon-pencil"/>\
+    <div class="editor onLightRange"><input class="minOnLight" value="<%- minOnLight %>"/><input class="maxOnLight" value="<%- maxOnLight %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
   </div>\
-  <div data="offLightRange" class="setting offLightRange"><%- minOffLight %> - <%- maxOffLight %><span class="icon-pencil"/>\
-    <div class="editor offLightRange"><input class="minOffLight" value="<%- minOffLight %>"/><input class="maxOffLight" value="<%- maxOffLight %>"/><button class="save"><l/></button><span class="icon-cancel-circle"/></div>\
+  <div data="offLightRange" class="setting offLightRange"><%- minOffLight %> - <%- maxOffLight %><span class="icon icon-pencil"/>\
+    <div class="editor offLightRange"><input class="minOffLight" value="<%- minOffLight %>"/><input class="maxOffLight" value="<%- maxOffLight %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
   </div>\
   <div class="waterLevel <%- waterLevel %>"></div>\
   <div class="power <%- power %>"></div>\
@@ -86,10 +87,12 @@ $(document).ready(function() {
       this.listenTo(this.model, 'change', this.render);
     },
     events: {
-      "click button": "saveData",
+      "click button": "sendData",
       "click .icon-pencil": "openEditor",
       "click .icon-cancel-circle": "closeEditors",
       "click .icon-cog": "toggleSettings",
+      "click .icon-loop2": "refreshData",
+      "click .icon-floppy-disk": "save",
       "keyup .module": "keyUp"
     },
     render: function() {
@@ -104,9 +107,12 @@ $(document).ready(function() {
     },
     openEditor: function(e) {
       $('.editor').hide();
-      var data = $(e.currentTarget).parents("div.setting").attr("data");
-      $('.editor.' + data).show();
-      $('.editor.' + data + ' input').first().focus().select();
+      // when handling several modules, need to make sure we target the right one's DOM
+      var parent = $(e.currentTarget).parents("div.setting").first();
+      var data = parent.attr("data");
+      parent.find('.editor.' + data).show();
+      parent.find('.editor.' + data + ' input').first().focus().select();
+      $('body').addClass("editing");
       e.stopPropagation();
     },
     toggleSettings: function() {
@@ -115,43 +121,75 @@ $(document).ready(function() {
     },
     closeEditors: function(e) {
       $('.editor').hide();
+      $('body').removeClass("editing");
     },
-    saveData: function(e) {
+    refreshData: function() {
+      modules.fetch({
+        reset: true,
+        error: function(collection, response, options) {
+          debugger;
+        }
+      });
+    },
+    save: function() {
+      this.send({command: "save"});
+    },
+
+    sendData: function(e) {
       this.closeEditors();
       var message = "";
-      var data = $(e.target).parents("div.setting").attr("data");
-      var url = document.location.href.split('/');
-      url.pop();
-      url = url.join('/') + "/msgArduino";
+      // when handling several modules, need to make sure we target the right one's DOM
+      var parent = $(e.target).parents("div.setting").first();
+      var data = parent.attr("data");
       var params = {};
       var send = false;
       // TODO: need to use localized message... or new "technical" messages not localized ? => modif arduino code, add many messages... :(
       switch(data) {
         case "onLightRange":
-          params.command = "light limits on: " + $('input.minOnLight').val() + '-' + $('input.maxOnLight').val();
+          var min = parent.find('input.minOnLight').val();
+          var max = parent.find('input.maxOnLight').val();
+          params.command = "light limits on: " + min  + '-' + max;
+          // update model
+          this.model.set('minOnLight', parseInt(min));
+          this.model.set('maxOnLight', parseInt(max));
           send = true;
           break;
         case "offLightRange":
-          params.command = "light limits off: " + $('input.minOffLight').val() + '-' + $('input.maxOffLight').val();
+          var min = parent.find('input.minOffLight').val();
+          var max = parent.find('input.maxOffLight').val();
+          params.command = "light limits off: " + min  + '-' + max;
+          // update model
+          this.model.set('minOffLight', parseInt(min));
+          this.model.set('maxOffLight', parseInt(max));
           send = true;
           break;
         case "temperatureRange":
-          params.command = "temp " + parseFloat($('input.minTemp').val())*100 + ' ' + parseFloat($('input.maxTemp').val())*100;
+          var min = parseFloat(parent.find('input.minTemp').val());
+          var max = parseFloat(parent.find('input.maxTemp').val());
+          params.command = "temp " + min * 100 + ' ' + max * 100;
+          this.model.set('minTemp', min);
+          this.model.set('maxTemp', max);
           send = true;
           break;
         case "temperatureAdjustment":
-          params.command = "temp adj " + parseFloat($('input.tempAdj').val()*100);
+          var tempAdj = parseFloat(parent.find('input.tempAdj').val());
+          params.command = "temp adj " + tempAdj * 100;
+          this.model.set('tempAdj', tempAdj);
           send = true;
           break;
       }
       if(send) {
-        $.ajax(url, {
-          complete: function() {
-            fetch();
-          },
-          data: params
-        });
+        this.send(params);
       }
+    },
+
+    send: function(data) {
+      var url = document.location.href.split('/');
+      url.pop();
+      url = url.join('/') + "/msgArduino";
+      $.ajax(url, {
+        data: data
+      });
     }
   });
 
@@ -160,11 +198,10 @@ $(document).ready(function() {
     initialize: function() {
       this.listenTo(modules, 'add', this.addOne);
       this.listenTo(modules, 'reset', this.addAll);
-      this.listenTo(modules, 'all', this.render);
-
     },
+
     addOne: function(aModule) {
-      var view = new AquaNetView({model: aModule});
+      var view = new AquaNetView({model: aModule, id: aModule.id});
       this.$("#module-list").append(view.render().el);
     },
     addAll: function() {
@@ -173,17 +210,20 @@ $(document).ready(function() {
     }
   });
 
-  var app = new AppView;
-  //setInterval(fetch, 10000);
+  var app = new AppView({model: modules, id: "modules"});
+  window.app = app;
+  setInterval(fetch, 10000);
   fetch();
 
   function fetch() {
-    modules.fetch({
-      reset: true,
-      error: function(collection, response, options) {
-        debugger;
-      }
-    });
+    if(!$('body').hasClass("editing")) {
+      app.model.fetch({
+        reset: false,
+        error: function(collection, response, options) {
+          debugger;
+        }
+      });
+    }
   }
 
 });
