@@ -23,13 +23,14 @@
 #include "aquaNetMessages.h"
 
 // Structure to hold all wifi-related configuration
-#define CONFIG_VERSION 'F'
+#define CONFIG_VERSION 'G'
 #define DEFAULT_AP_SSID "aquaMonitor"    // AP ssid by default, known by all devices, can be changed
 #define DEFAULT_AP_PWD  "aquaPassword"   // 8 CHAR OR MORE !! AP pwd by default so that other devices can connect
 #define DEFAULT_STAT_INTERVAL  300000    // update stats every 5 minutes by default
 #define DEFAULT_ARDUINO_CHECK_INTERVAL  2000    // check incoming message from arduino every x milliseconds by default
 struct eepromConfig {
   unsigned char version; // Always keep it as first member when modifying this structure
+  char webAppHost[50];   // hostname to host webApp files
   char statisticsHost[50]; // hostname to send statistics to; e.g. http://www.myStats.com
   char statisticsPath[50]; // path on the host to send statistics to; e.g. cgi-bin/recordStats
   char logPath[50]; // path on the host to send logs (incoming sms, voice call numbers... ?)
@@ -84,6 +85,7 @@ void readConfig() {
   if(config.version != CONFIG_VERSION) {
     Serial.println(WIFI_CONFIG_INIT);
     config.version = CONFIG_VERSION;
+    strcpy(config.webAppHost, DEFAULT_WEBAPP_HOST);
     strcpy(config.statisticsHost, DEFAULT_STAT_HOST);
     strcpy(config.statisticsPath, DEFAULT_STAT_PATH);
     strcpy(config.logPath, DEFAULT_LOG_PATH);

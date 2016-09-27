@@ -62,28 +62,28 @@ $(document).ready(function() {
     template: _.template('\
 <div class="module <%- type %> <%- oneAlert %>" moduleId="<%- id %>">\
   <div class="name"><%- id %><div class="commands"><span class="icon icon-cog"/><span class="icon icon-loop2"/><span class="icon icon-floppy-disk"/></div></div>\
-  <div class="temperature <%- tempAlert %>"><%- temp %><span class="icon icon-sad"/></div>\
+  <div class="power <%- power %>"><span class="icon icon-sad"/><span class="icon icon-smile"/></div>\
+  <div class="waterLevel <%- waterLevel %>"><span class="icon icon-sad"/><span class="icon icon-smile"/></div>\
+  <div class="temperature <%- tempAlert %>"><%- temp %><span class="icon icon-sad"/><span class="icon icon-smile"/></div>\
   <div data="temperatureRange" class="setting temperatureRange"><%- minTemp %> - <%- maxTemp %><span class="icon icon-pencil"/>\
-    <div class="editor temperatureRange"><input class="minTemp" value="<%- minTemp %>"/><input class="maxTemp" value="<%- maxTemp %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
+    <div class="editor temperatureRange"><input type="number" class="minTemp" value="<%- minTemp %>"/><input type="number" class="maxTemp" value="<%- maxTemp %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
   </div>\
   <div data="temperatureAdjustment" class="setting temperatureAdjustment"><%- tempAdj %><span class="icon icon-pencil"/>\
-    <div class="editor temperatureAdjustment"><input class="tempAdj" value="<%- tempAdj %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
+    <div class="editor temperatureAdjustment"><input type="number" class="tempAdj" value="<%- tempAdj %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
   </div>\
-  <div class="light <%- lightAlert %>"><%- light %><span class="icon icon-sad"/></div>\
+  <div class="light <%- lightAlert %>"><%- light %><span class="icon icon-sad"/><span class="icon icon-smile"/></div>\
   <div data="lightOn" class="setting lightOn"><%- lightOn %><span class="icon icon-pencil"/>\
     <div class="editor lightOn"><input class="lightOn" value="<%- lightOn %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
   </div>\
   <div data="onLightRange" class="setting onLightRange"><%- minOnLight %> - <%- maxOnLight %><span class="icon icon-pencil"/>\
-    <div class="editor onLightRange"><input class="minOnLight" value="<%- minOnLight %>"/><input class="maxOnLight" value="<%- maxOnLight %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
+    <div class="editor onLightRange"><input type="number" class="minOnLight" value="<%- minOnLight %>"/><input type="number" class="maxOnLight" value="<%- maxOnLight %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
   </div>\
   <div data="lightOff" class="setting lightOff"><%- lightOff %><span class="icon icon-pencil"/>\
     <div class="editor lightOff"><input class="lightOff" value="<%- lightOff %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
   </div>\
   <div data="offLightRange" class="setting offLightRange"><%- minOffLight %> - <%- maxOffLight %><span class="icon icon-pencil"/>\
-    <div class="editor offLightRange"><input class="minOffLight" value="<%- minOffLight %>"/><input class="maxOffLight" value="<%- maxOffLight %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
+    <div class="editor offLightRange"><input type="number" class="minOffLight" value="<%- minOffLight %>"/><input type="number" class="maxOffLight" value="<%- maxOffLight %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
   </div>\
-  <div class="waterLevel <%- waterLevel %>"><span class="icon icon-sad"/></div>\
-  <div class="power <%- power %>"><span class="icon icon-sad"/></div>\
   <div data="date" class="setting date"><%- date %><span class="icon icon-pencil"/>\
     <div class="editor date"><input class="date" value="<%- date %>"/><button class="save"><l/></button><span class="icon icon-cancel-circle"/></div>\
   </div>\
@@ -133,12 +133,7 @@ $(document).ready(function() {
       $('body').removeClass("editing");
     },
     refreshData: function() {
-      modules.fetch({
-        reset: true,
-        error: function(collection, response, options) {
-          debugger;
-        }
-      });
+      fetch();
     },
     saveConfig: function() {
       this.send({command: "save"});
@@ -244,10 +239,16 @@ $(document).ready(function() {
 
   function fetch() {
     if(!$('body').hasClass("editing")) {
+      $('body').removeClass('fetchingError');
+      $('body').addClass('fetching');
       app.model.fetch({
         reset: false,
         error: function(collection, response, options) {
-          debugger;
+          $('body').addClass('fetchingError');
+          //debugger;
+        },
+        complete: function() {
+          $('body').removeClass('fetching');
         }
       });
     }

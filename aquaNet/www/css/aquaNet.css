@@ -79,10 +79,16 @@ div.editor input.date {
   width: 13em;
 }
 
-div.editor input.lightOn, div.editor input.lightOff {
-  width: 7em;
+div.editor input.lightOnStart, div.editor input.lightOnEnd {
+  width: 8em;
 }
 
+div.editor input.lightOff {
+  width: 7em;
+}
+div.editor input.minTemp, div.editor input.maxTemp {
+  width: 3em;
+}
 div.editor button {
   height: 100%;
   padding: 0 3px;
@@ -105,16 +111,40 @@ span.icon:hover {
   opacity: 1;
 }
 
+body.fetchingError span.icon.icon-loop2 {
+  opacity: 1;
+  color: red;
+}
+@keyframes rotating {
+  from{transform:rotate(0deg);}
+  to{transform:rotate(360deg);}
+}
+
+body.fetching span.icon.icon-loop2 {
+  animation: rotating 2s linear infinite;
+  opacity: 1;
+}
+
 .icon.icon-pencil {
   display: none;
 }
 .isAlert>.icon.icon-sad {
   display: block;
 }
+.isAlert>.icon.icon-smile {
+  display: none;
+}
 
 span.icon.icon-sad {
   display: none;
   color: red;
+  font-weight: bold;
+  opacity: 1;
+  cursor: default;
+}
+span.icon.icon-smile {
+  display: block;
+  color: green;
   font-weight: bold;
   opacity: 1;
   cursor: default;
