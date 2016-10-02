@@ -75,8 +75,8 @@ for($i = 0; $i < $count; $i++) {
             $ids["userId"], $ids["moduleId"],
             $moduleStats[$i]["light"], $moduleStats[$i]["lightAlert"],
             $temp, $moduleStats[$i]["tempAlert"],
-            $moduleStats[$i]["waterLevelAlert"], $waterLevel,
-            $moduleStats[$i]["powerAlert"], $mainPower,
+            $waterLevel, $moduleStats[$i]["waterLevelAlert"],
+            $mainPower, $moduleStats[$i]["powerAlert"],
             $timestamp);
 
     $stmt->execute();

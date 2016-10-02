@@ -270,54 +270,22 @@ void processMessage(char *message) {
   }
 }
 
+// Logs statistic to a webserver with a mysql database.
 void sendStat() {
-  //if(strlen(aquaStatus) < 10) return;
+  if(strlen(aquaStatus) < 10) return;
   Serial.println("Logging Stats");
-
-  char message[2100]; // Todo use String
+  char message[2100];
   WiFiClient client;
 
-  /*
-  if (client.connect(config.statisticsHost, 80)) {
-  //if (client.connect("192.168.0.4", 8080)) {
-    clientConnected = 1;
-    sprintf(message, "POST %s HTTP/1.1", config.statisticsPath);
-    client.println(message);
-    sprintf(message, "Host: %s", config.statisticsHost);
-    client.println(message);
-    client.println("Content-Type: application/json");
-  //  sprintf(message, "{\"key\":\"%s\", \"stat\":%s}", STAT_API_KEY, "[{\"name\":\"Aquarium\",\"light\":300}]");
-    sprintf(message, "{\"key\":\"%s\", \"stat\":%s}", STAT_API_KEY, aquaStatus);
-    int length = strlen(message);
-    client.print("Content-Length: "); client.println(length);
-    client.println();
-    client.println(message);
-    //client.println("Connection: close");
-    Serial.println("Logged Stats");
-    Serial.println(length);
-
-    if (!client.connected()) {
-      Serial.println("Disconnecting from host.");
-      client.stop();
-    }
-  } else {
-    Serial.println("No logging Stats");
-    client.stop();
-  }
-  */
   char url[200];
-     HTTPClient http;
-     sprintf(message, "http://%s/%s", config.statisticsHost, config.statisticsPath);
-     http.begin(message);
-     http.addHeader("Content-Type", "application/json");
-     // a simple payload, for doc on payload format see: https://docs.internetofthings.ibmcloud.com/messaging/payload.html
-     sprintf(message, "{\"key\":\"%s\", \"stat\":%s}", STAT_API_KEY, aquaStatus);
-
-     int httpCode = http.POST(message);
-     Serial.print("HTTP POST Response: "); Serial.println(httpCode); // HTTP code 200 means ok
-     http.writeToStream(&Serial);
-
-     http.end();
+  HTTPClient http;
+  sprintf(message, "http://%s/%s", config.statisticsHost, config.statisticsPath);
+  http.begin(message);
+  http.addHeader("Content-Type", "application/json");
+  // doc on payload format: https://docs.internetofthings.ibmcloud.com/messaging/payload.html
+  sprintf(message, "{\"key\":\"%s\", \"stat\":%s}", STAT_API_KEY, aquaStatus);
+  int httpCode = http.POST(message);   // Log stuff to Serial ?
+  http.end();
 }
 
 // Send a request to Arduino.
