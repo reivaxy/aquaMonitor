@@ -2,6 +2,7 @@
 #include <EEPROM.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
+#include <ESP8266HTTPClient.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 #include <ArduinoJson.h>
@@ -23,11 +24,11 @@
 #include "aquaNetMessages.h"
 
 // Structure to hold all wifi-related configuration
-#define CONFIG_VERSION 'G'
+#define CONFIG_VERSION 'I'
 #define DEFAULT_AP_SSID "aquaMonitor"    // AP ssid by default, known by all devices, can be changed
 #define DEFAULT_AP_PWD  "aquaPassword"   // 8 CHAR OR MORE !! AP pwd by default so that other devices can connect
-#define DEFAULT_STAT_INTERVAL  300000    // update stats every 5 minutes by default
-#define DEFAULT_ARDUINO_CHECK_INTERVAL  2000    // check incoming message from arduino every x milliseconds by default
+#define DEFAULT_STAT_INTERVAL  120000    // interval to send stats
+#define DEFAULT_GET_MEASURES_INTERVAL  30000  // interval to send measures request to arduino
 struct eepromConfig {
   unsigned char version; // Always keep it as first member when modifying this structure
   char webAppHost[50];   // hostname to host webApp files
@@ -35,7 +36,7 @@ struct eepromConfig {
   char statisticsPath[50]; // path on the host to send statistics to; e.g. cgi-bin/recordStats
   char logPath[50]; // path on the host to send logs (incoming sms, voice call numbers... ?)
   unsigned long statisticsInterval = 0; // number of milliseconds between two statistic sending
-  unsigned long arduinoCheckInterval = 0; // number of milliseconds between two incoming arduino message checks
+  unsigned long getMeasuresInterval = 0; // number of milliseconds between two request arduino for measures
   char homeSsid[20];       // ssid to connect to (home network)
   char homePwd[65];        // Password for wifi connection
   char APSsid[20];         // ssid to create as AP for the other modules
@@ -44,15 +45,15 @@ struct eepromConfig {
 } config;
 
 ESP8266WebServer server(80);
-WiFiClient client;
 MDNSResponder mdns;
 int clientConnected = 0;
 boolean homeWifiConnected = false;
 
 char serialMessage[MAX_SERIAL_INPUT_MESSAGE];
 unsigned long lastStatSent = 0;
-unsigned long lastArduinoCheck = 0;
-char aquaStatus[500]; // Json string containing data from arduino
+unsigned long lastGetMeasures = 0;
+
+char aquaStatus[1000]; // Json string containing data from arduino
 
 // return true if current time is after given time + delay
 boolean checkElapsedDelay(unsigned long now, unsigned long lastTime, unsigned long delay) {
@@ -95,7 +96,7 @@ void readConfig() {
     strcpy(config.APPwd, DEFAULT_AP_PWD);
     strcpy(config.deviceName, "Aquarium");
     config.statisticsInterval = DEFAULT_STAT_INTERVAL; // number of milliseconds between two statistic sending
-    config.arduinoCheckInterval = DEFAULT_ARDUINO_CHECK_INTERVAL; // number of milliseconds between two arduino msg checks
+    config.getMeasuresInterval = DEFAULT_GET_MEASURES_INTERVAL; // number of milliseconds between two arduino msg checks
 
     // Save the configuration to EEPROM
     Serial.println(WIFI_CONFIG_SAVING);
@@ -119,10 +120,10 @@ void setup(void){
 
   strcpy(aquaStatus, "[]");  // No data yet
   EEPROM.begin(configSize);  // Config is read from and stored to EEPROM
-  Serial.begin(115200);
+  Serial.begin(9600);
   WiFi.mode(WIFI_STA);  // ap could be active from previous time
 
-  delay(10000); // delay to connect monitor
+  delay(5000); // delay to connect monitor
   Serial.println("Init aquaNet");
   readConfig();
 
@@ -133,7 +134,7 @@ void setup(void){
 
     // Wait for connection, with timeout
     while ((WiFi.status() != WL_CONNECTED) && timeout --) {
-      delay(500);
+      delay(200);
     }
     if(timeout != 0) {
       homeWifiConnected = true;
@@ -212,8 +213,16 @@ void loop(void) {
   unsigned long now = millis();
   boolean result ;
   server.handleClient();
-  if ((config.statisticsHost[0] !=0) && homeWifiConnected && checkElapsedDelay(now, lastStatSent, config.statisticsInterval/10)) {
+
+  // If module connected to home wifi and interval elapsed, request measures from arduino
+  if (homeWifiConnected && checkElapsedDelay(now, lastGetMeasures, config.getMeasuresInterval)) {
     sendArduino(REQUEST_MEASURES);
+    lastGetMeasures = now;  // Don't wait for response to not request again next loop
+  }
+
+  // If statistci host is configured, connected to home wifi and interval elapsed, send stats
+  if ((config.statisticsHost[0] !=0) && homeWifiConnected && checkElapsedDelay(now, lastStatSent, config.statisticsInterval)) {
+    sendStat();
     lastStatSent = now;  // Don't wait for response to not request again next loop
   }
 
@@ -257,34 +266,58 @@ void processMessage(char *message) {
       firstChar++;
       root.printTo(firstChar, sizeof(aquaStatus) -1);
       strcat(aquaStatus, "]");
-      Serial.println("");
-      //writeToSerial(&Serial, aquaStatus, 500);
-      sendStat();
     }
   }
 }
 
 void sendStat() {
-return;
-  char request[2100]; // Todo use String
-  char param[2000];
+  //if(strlen(aquaStatus) < 10) return;
+  Serial.println("Logging Stats");
+
+  char message[2100]; // Todo use String
+  WiFiClient client;
+
+  /*
   if (client.connect(config.statisticsHost, 80)) {
+  //if (client.connect("192.168.0.4", 8080)) {
     clientConnected = 1;
-    sprintf(request, "GET %s?stat=%s HTTP/1.1", config.statisticsPath, urlEncode(aquaStatus, param, sizeof(param)));
-    Serial.println("Logged Stats");
-    client.println(request);
-    sprintf(request, "Host: %s", config.statisticsHost);
-    client.println(request);
-    client.println("Connection: close");
+    sprintf(message, "POST %s HTTP/1.1", config.statisticsPath);
+    client.println(message);
+    sprintf(message, "Host: %s", config.statisticsHost);
+    client.println(message);
+    client.println("Content-Type: application/json");
+  //  sprintf(message, "{\"key\":\"%s\", \"stat\":%s}", STAT_API_KEY, "[{\"name\":\"Aquarium\",\"light\":300}]");
+    sprintf(message, "{\"key\":\"%s\", \"stat\":%s}", STAT_API_KEY, aquaStatus);
+    int length = strlen(message);
+    client.print("Content-Length: "); client.println(length);
     client.println();
-  }
-  // TODO: what is the purpose of this ?
-  // if the server's disconnected, stop the client:
-  if (clientConnected == 1 && !client.connected()) {
-    Serial.println("Disconnecting from host.");
+    client.println(message);
+    //client.println("Connection: close");
+    Serial.println("Logged Stats");
+    Serial.println(length);
+
+    if (!client.connected()) {
+      Serial.println("Disconnecting from host.");
+      client.stop();
+    }
+  } else {
+    Serial.println("No logging Stats");
     client.stop();
-    clientConnected = 0;
   }
+  */
+  char url[200];
+     HTTPClient http;
+     sprintf(message, "http://%s/%s", config.statisticsHost, config.statisticsPath);
+     http.begin(message);
+     http.addHeader("Content-Type", "application/json");
+     // a simple payload, for doc on payload format see: https://docs.internetofthings.ibmcloud.com/messaging/payload.html
+     sprintf(message, "{\"key\":\"%s\", \"stat\":%s}", STAT_API_KEY, aquaStatus);
+
+     int httpCode = http.POST(message);
+     Serial.print("HTTP POST Response: "); Serial.println(httpCode); // HTTP code 200 means ok
+     http.writeToStream(&Serial);
+
+     http.end();
 }
 
 // Send a request to Arduino.
@@ -312,6 +345,7 @@ void sendArduinoCommand(char *msg) {
   Serial.println(message);
 }
 
+// no longer used, for now.
 char *urlEncode(char *toEncode, char *encoded, int size) {
   // char to not encode
   char notEncode[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~";

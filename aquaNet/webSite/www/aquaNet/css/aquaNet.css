@@ -79,11 +79,7 @@ div.editor input.date {
   width: 13em;
 }
 
-div.editor input.lightOnStart, div.editor input.lightOnEnd {
-  width: 8em;
-}
-
-div.editor input.lightOff {
+div.editor input.lightOff, div.editor input.lightOn {
   width: 7em;
 }
 div.editor input.minTemp, div.editor input.maxTemp {

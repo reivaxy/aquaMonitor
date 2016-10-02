@@ -171,7 +171,7 @@ void setup(void) {
   serialMessage[0] = 0;
   serialMessageFromESP[0] = 0;
   Serial.begin(9600);
-  Serial1.begin(115200);
+  Serial1.begin(9600);
 
   // Init pin with the level detector as input
   pinMode(LEVEL_PIN, INPUT);
