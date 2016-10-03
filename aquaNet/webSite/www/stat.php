@@ -45,7 +45,6 @@ while($row = $stmt->fetch()) {
 // print_r($modules);
 
 $stmt->free_result();
-$stmt->fetch();
 $stmt->close();
 
 $count = count($moduleStats);
