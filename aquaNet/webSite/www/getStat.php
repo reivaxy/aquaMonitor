@@ -12,8 +12,8 @@ $stat = array();
 $mysqli = connect();
 $stmt =  $mysqli->stmt_init();
 $stmt->prepare('select datadate, power, poweralert, waterlevel, waterlevelalert, '
-                       . ' lightlevel, lightlevelalert, temperature, temperaturealert '
-                       . ' from aquanetstat where moduleid = ? order by statid asc limit 200 ') OR die("Invalid statement");
+     . ' lightlevel, lightlevelalert, temperature, temperaturealert '
+     . ' from aquanetstat where moduleid = ? and datadate > DATE_SUB(NOW(), INTERVAL 24 HOUR) order by statid ') OR die("Invalid statement");
 
 $stmt->bind_param("i", $moduleId);
 $stmt->execute();
