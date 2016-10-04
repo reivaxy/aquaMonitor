@@ -410,7 +410,6 @@ void checkTemperature() {
     displayTransient(getProgMemMsg(CRC_NOT_VALID_MSG));
   } else if ( addr[sensor][0] != 0x28) {
     displayTransient(getProgMemMsg(FAMILY_MSG));
-    sprintf(display.temperatureMsg, getProgMemMsg(TEMPERATURE_MSG_FORMAT), '+', 0 );
   } else {
     ds.reset();
     ds.select(addr[sensor]);
@@ -492,17 +491,6 @@ boolean checkLightSchedule(int lightLevel, lightSchedule schedule) {
 void checkLight() {
   measures.light = analogRead(LIGHT_PIN);
   measures.lightAlert = !checkLightSchedule(measures.light, config.lightOn) || !checkLightSchedule(measures.light, config.lightOff);
-}
-
-// Check for incoming voice call, in order to not break SMS
-void checkCall() {
-  switch (vcs.getvoiceCallStatus()) {
-    case RECEIVINGCALL:
-      vcs.answerCall();
-      delay(1000);
-      vcs.hangCall();
-      break;
-  }
 }
 
 // Check for incoming voice call, in order to not break SMS

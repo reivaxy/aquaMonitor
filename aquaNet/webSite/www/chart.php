@@ -2,6 +2,7 @@
 <meta charset="utf-8">
 <head>
 <style> /* set the CSS */
+.xaxis { font: 14px sans-serif;}
 .axis { font: 14px sans-serif;}
 .axisTemp { font: 14px sans-serif; }
 
@@ -81,7 +82,7 @@ d3.json("getStat.php", function(error, data) {
       .attr("d", temperatureLine);
   // Add the X Axis
   svg.append("g")
-      .attr("class", "axis")
+      .attr("class", "xaxis")
       .attr("transform", "translate(0," + height + ")")
       .call(d3.axisBottom(x)
               .tickFormat(d3.timeFormat("%H:%M")))
