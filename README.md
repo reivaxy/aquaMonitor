@@ -1,15 +1,25 @@
 # aquaMonitor
-Monitoring a recifal aquarium with an Arduino Mega board, and sending alerts by SMS
 
-Monitors light, temperature, and water level, main power failure, and sends an SMS to a registered mobile phone number when configurable thresholds are reached.
+Device to monitor a recifal aquarium (or reef tank) with an Arduino Mega board and send SMS alerts when vitals are bad.
 
-All configuration handled through SMS.
+Monitors light level, temperature, water level, main power failure, and sends SMS to all registered mobile phone numbers when configurable thresholds are reached.
+
+Settings (thresholds for light and temperature, light schedule, ...) are all managed through sending SMS, or via a web application.
+
+WebApp showing a light level alert | Example of SMS communication
+-------|-------
+<img src="res/webApp.png" width="300px"/> | <img src="res/SMS.png" width="300px"/>
+
+
+Chart displaying evolution of parameters:<br/>
+<img src="res/chart.png" width="600px"/>
+
+Device installed:<br/>
+<img src="res/installedBlue-1024.jpg" width="600px"/>
 
 Although project comes with 3D files to print the triple sensor bracket (light, temperature and adjustable water level sensor) and case, you dont *need* a 3D printer, you can instead use a case from the market and design your own fixture for the sensors.
 
 A PCB design (for Fritzing http://fritzing.org/home/) is provided, you can either order the PCB, make it yourself, or use a prototyping board instead.
-
-The branch named "wifi" explores IOT: Exposition of an embedded web server to display data and access configuration, creation of a wifi access point for other modules to connect and share the GSM module... etc.
 
 Disclaimer: This system description is provided with no warranty whatsoever. If you use it, you accept to do so at your own risks, should a bug or any event be the cause of a malfunction.
 Originally supposed to run on a UNO board, this project does not take full advantage of more advanced Mega board features.
@@ -18,16 +28,20 @@ Originally supposed to run on a UNO board, this project does not take full advan
 * Temperature periodical measurement
 * Light periodical measurement
 * Water level (high/low) detection
-* LCD display of these measures
-* Sending SMS with light, temperature and level when thresholds are reached
-* Can subscribe a new phone number to alerts by sending an SMS.
-* Adjusting the low light alarm threshold by SMS
+* Main power monitoring
+* LCD scrolling display of these measures
+* Connects to home wifi network
+* Expose a webApp to monitor and set the parameters
+* Periodically sends measures to an external website to provide charts
+* Sending SMS with light, temperature, main power and water level when thresholds are reached
+* Can subscribe/unsubscribe a new phone number to alerts by sending an SMS.
+* Adjusting the high/low light threshold and schedules by SMS
 * Adjusting the temperature value by SMS
 * Adjusting the time interval when light should be on.
 * Save and read params (thresholds...) to EEPROM
 * Battery in case main power fails.
-* Most strings stored in PROGMEM to save variable memory space.
-* Subscribed phone numbers can set the minimum interval between 2 alerts to avoid flooding
+* Most strings stored in PROGMEM to save variable memory space, easily localizable.
+* Each subscribed phone numbers can set a minimum interval between 2 alerts to avoid flooding
 * Periodical checking for incoming SMS, handles messages like :
   * 'admin +33xxxxxxxx' : add this phone number with admin rights
   * 'config' : send back the config
@@ -50,29 +64,26 @@ Originally supposed to run on a UNO board, this project does not take full advan
 * Water movement detection to warn about pumps failure (sensor remains to be found or designed...) 
 * Some more configuration by SMS (level detection switch state inversion for instance, or display shift frequency ?)
 * Periodical status sending (upon registration) ?
-* see roadmap for bigger planned changes (Wifi connection, web server)
+* see roadmap for bigger planned changes (Local Access Point for slave devices to connect to)
 
-# Some pictures 
+# More pictures 
 
 Prototype (at the time it could run on a UNO board):<br/>
 <img src="http://www.adgjm.eu/img/github/aquaMonitor-1024.jpg" width="400px"/><br/>
 
 <br/><br/>
 Finished:<br/>
-<img src="http://adgjm.eu/img/github/finished.jpg" width="400px"/>
+<img src="res/finished.jpg" width="400px"/>
 
-<br/><br/>
-Installed:<br/>
-<img src="http://adgjm.eu/img/github/installed.jpg" width="400px"/>
+
+Other device installed:<br/>
+<img src="res/installedGreen-1024.jpg" width="400"/>
 
 <br/><br/>
 Sensors:<br/>
 <img src="http://adgjm.eu/img/github/sensors.jpg" width="400px"/>
 
 <br/><br/>
-SMS exemples:<br/>
-SMS sent by user are yellow, replies sent by device are blue.<br/>
-<img src="http://adgjm.eu/img/github/sms.png" width="300px"/>
 
 #License
 
