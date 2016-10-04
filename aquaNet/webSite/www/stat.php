@@ -70,7 +70,7 @@ for($i = 0; $i < $count; $i++) {
 
     $waterLevel = !$moduleStats[$i]["waterLevelAlert"];
     $mainPower = !$moduleStats[$i]["powerAlert"];
-    $stmt->bind_param("iiiiiiiiiis",
+    $stmt->bind_param("iiiidiiiiis",
             $ids["userId"], $ids["moduleId"],
             $moduleStats[$i]["light"], $moduleStats[$i]["lightAlert"],
             $temp, $moduleStats[$i]["tempAlert"],

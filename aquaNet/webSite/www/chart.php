@@ -2,8 +2,15 @@
 <meta charset="utf-8">
 <head>
 <style> /* set the CSS */
-.axis { font: 14px sans-serif; color: steelblue; }
-.axisTemp { font: 14px sans-serif; color:red; }
+.axis { font: 14px sans-serif;}
+.axisTemp { font: 14px sans-serif; }
+
+.axis text {
+  fill: steelblue;
+}
+.axisTemp text {
+  fill: red;
+}
 .line {
   fill: none;
   stroke: steelblue;
@@ -89,9 +96,8 @@ d3.json("getStat.php", function(error, data) {
       .call(yAxisLeft);
 
   svg.append("g")
-        .attr("class", "axis")
+        .attr("class", "axisTemp")
         .attr("transform", "translate(" + width + " ,0)")
-        //.style("fill", "red")
         .call(yAxisRight);
 });
 </script>
