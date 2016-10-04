@@ -94,68 +94,70 @@ const char inSmsUnsubFormat[] PROGMEM = {"unsub %s"};
 #define IN_SMS_UNSUB_FORMAT 44
 const char levelAlertMsg[] PROGMEM = {"Level alert"};
 #define LEVEL_ALERT_MSG 45
-const char levelHighMsg[] PROGMEM = {"Level: high"};
+const char levelHighMsg[] PROGMEM = {"high"};
 #define LEVEL_HIGH_MSG 46
-const char levelLowMsg[] PROGMEM = {"Level: LOW"};
+const char levelLowMsg[] PROGMEM = {"LOW"};
 #define LEVEL_LOW_MSG 47
 const char lightAlertMsg[] PROGMEM = {"Light alert"};
 #define LIGHT_ALERT_MSG 48
-const char lightMsgFormat[] PROGMEM = {"Light: %d"};
-#define LIGHT_MSG_FORMAT 49
 const char lightScheduleMsgFormat[] PROGMEM = {"Light schedule %s: %02d:%02d-%02d:%02d"};
-#define LIGHT_SCHEDULE_MSG_FORMAT 50
+#define LIGHT_SCHEDULE_MSG_FORMAT 49
 const char lightScheduleSetMsg[] PROGMEM = {"Light schedule set (save ?)"};
-#define LIGHT_SCHEDULE_SET_MSG 51
+#define LIGHT_SCHEDULE_SET_MSG 50
 const char lightThresholdMsgFormat[] PROGMEM = {"Light limits %s: %d-%d"};
-#define LIGHT_THRESHOLD_MSG_FORMAT 52
+#define LIGHT_THRESHOLD_MSG_FORMAT 51
 const char lightThresholdSetMsg[] PROGMEM = {"Light threshold set (save ?)"};
-#define LIGHT_THRESHOLD_SET_MSG 53
+#define LIGHT_THRESHOLD_SET_MSG 52
+const char measureAlertMsgFormat[] PROGMEM = {"ALERT %s - Temp: %s, Level: %s, Light: %d, POWER: %s"};
+#define MEASURE_ALERT_MSG_FORMAT 53
+const char measureMsgFormat[] PROGMEM = {"Temp: %s, Level: %s, Light: %d, POWER %s"};
+#define MEASURE_MSG_FORMAT 54
 const char newConfigMsg[] PROGMEM = {"NEW config"};
-#define NEW_CONFIG_MSG 54
+#define NEW_CONFIG_MSG 55
 const char notConnectedGsmMsg[] PROGMEM = {"Check GSM PIN"};
-#define NOT_CONNECTED_GSM_MSG 55
+#define NOT_CONNECTED_GSM_MSG 56
 const char numberNotSubscribedMsg[] PROGMEM = {"Sub to %s failed"};
-#define NUMBER_NOT_SUBSCRIBED_MSG 56
+#define NUMBER_NOT_SUBSCRIBED_MSG 57
 const char numberNotUnsubscribedMsg[] PROGMEM = {"Unsub to %s failed: not found"};
-#define NUMBER_NOT_UNSUBSCRIBED_MSG 57
+#define NUMBER_NOT_UNSUBSCRIBED_MSG 58
 const char numberSubscribedMsg[] PROGMEM = {"Sub to %s done"};
-#define NUMBER_SUBSCRIBED_MSG 58
+#define NUMBER_SUBSCRIBED_MSG 59
 const char numberUnsubscribedMsg[] PROGMEM = {"Unsub to %s done"};
-#define NUMBER_UNSUBSCRIBED_MSG 59
-const char powerOffMsg[] PROGMEM = {"POWER: off"};
-#define POWER_OFF_MSG 60
-const char powerOnMsg[] PROGMEM = {"POWER: on"};
-#define POWER_ON_MSG 61
+#define NUMBER_UNSUBSCRIBED_MSG 60
+const char powerAlertMsg[] PROGMEM = {"POWER Alert"};
+#define POWER_ALERT_MSG 61
+const char powerOffMsg[] PROGMEM = {"Off"};
+#define POWER_OFF_MSG 62
+const char powerOnMsg[] PROGMEM = {"On"};
+#define POWER_ON_MSG 63
 const char resetSubDoneMsg[] PROGMEM = {"Reset sub. done (save ?)"};
-#define RESET_SUB_DONE_MSG 62
+#define RESET_SUB_DONE_MSG 64
 const char savingConfigMsg[] PROGMEM = {"Saving config"};
-#define SAVING_CONFIG_MSG 63
+#define SAVING_CONFIG_MSG 65
 const char sendingSmsMsg[] PROGMEM = {"Sending SMS..."};
-#define SENDING_SMS_MSG 64
+#define SENDING_SMS_MSG 66
 const char setAdminDoneMsg[] PROGMEM = {"Admin set (save ?)"};
-#define SET_ADMIN_DONE_MSG 65
+#define SET_ADMIN_DONE_MSG 67
 const char setTimeDoneMsg[] PROGMEM = {"Time set"};
-#define SET_TIME_DONE_MSG 66
+#define SET_TIME_DONE_MSG 68
 const char smsSentMsg[] PROGMEM = {"SMS sent"};
-#define SMS_SENT_MSG 67
+#define SMS_SENT_MSG 69
 const char temperatureAdjustmentMsgFormat[] PROGMEM = {"Temp Adj: %d"};
-#define TEMPERATURE_ADJUSTMENT_MSG_FORMAT 68
+#define TEMPERATURE_ADJUSTMENT_MSG_FORMAT 70
 const char temperatureAdjustmentSetMsg[] PROGMEM = {"Temp adjustment set (save ?)"};
-#define TEMPERATURE_ADJUSTMENT_SET_MSG 69
+#define TEMPERATURE_ADJUSTMENT_SET_MSG 71
 const char temperatureAlertMsg[] PROGMEM = {"Temp Alert"};
-#define TEMPERATURE_ALERT_MSG 70
-const char temperatureMsgFormat[] PROGMEM = {"Temp: %c%d.%d"};
-#define TEMPERATURE_MSG_FORMAT 71
+#define TEMPERATURE_ALERT_MSG 72
 const char temperatureThresholdsSetMsg[] PROGMEM = {"Temp thresholds set (save ?)"};
-#define TEMPERATURE_THRESHOLDS_SET_MSG 72
+#define TEMPERATURE_THRESHOLDS_SET_MSG 73
 const char temperatureThresholdMsgFormat[] PROGMEM = {"Temp: %d %d"};
-#define TEMPERATURE_THRESHOLD_MSG_FORMAT 73
+#define TEMPERATURE_THRESHOLD_MSG_FORMAT 74
 const char tempInitMsg[] PROGMEM = {"DS1820 Test"};
-#define TEMP_INIT_MSG 74
+#define TEMP_INIT_MSG 75
 const char unknownMsg[] PROGMEM = {"What ???"};
-#define UNKNOWN_MSG 75
+#define UNKNOWN_MSG 76
 const char unknownNumberMsg[] PROGMEM = {"UnknoWn number"};
-#define UNKNOWN_NUMBER_MSG 76
+#define UNKNOWN_NUMBER_MSG 77
 const char* const messages[] PROGMEM = {
   accessDeniedMsg, addrErrMsg, alertMsgFormat, buildMsg, checkSmsMsg, 
   clearAlertDoneMsg, configResetMsg, configSavedMsg, connectedGsmMsg, connectingGsmMsg, 
@@ -166,11 +168,11 @@ const char* const messages[] PROGMEM = {
   inSmsSave, inSmsSetAdmin, inSmsSetAdminFormat, inSmsSetTime, inSmsSetTimeFormat, 
   inSmsStatus, inSmsSub, inSmsSubs, inSmsSubFormat, inSmsTemp, 
   inSmsTempAdj, inSmsTempAdjFormat, inSmsTempFormat, inSmsUnsub, inSmsUnsubFormat, 
-  levelAlertMsg, levelHighMsg, levelLowMsg, lightAlertMsg, lightMsgFormat, 
-  lightScheduleMsgFormat, lightScheduleSetMsg, lightThresholdMsgFormat, lightThresholdSetMsg, newConfigMsg, 
-  notConnectedGsmMsg, numberNotSubscribedMsg, numberNotUnsubscribedMsg, numberSubscribedMsg, numberUnsubscribedMsg, 
-  powerOffMsg, powerOnMsg, resetSubDoneMsg, savingConfigMsg, sendingSmsMsg, 
-  setAdminDoneMsg, setTimeDoneMsg, smsSentMsg, temperatureAdjustmentMsgFormat, temperatureAdjustmentSetMsg, 
-  temperatureAlertMsg, temperatureMsgFormat, temperatureThresholdsSetMsg, temperatureThresholdMsgFormat, tempInitMsg, 
-  unknownMsg, unknownNumberMsg
+  levelAlertMsg, levelHighMsg, levelLowMsg, lightAlertMsg, lightScheduleMsgFormat, 
+  lightScheduleSetMsg, lightThresholdMsgFormat, lightThresholdSetMsg, measureAlertMsgFormat, measureMsgFormat, 
+  newConfigMsg, notConnectedGsmMsg, numberNotSubscribedMsg, numberNotUnsubscribedMsg, numberSubscribedMsg, 
+  numberUnsubscribedMsg, powerAlertMsg, powerOffMsg, powerOnMsg, resetSubDoneMsg, 
+  savingConfigMsg, sendingSmsMsg, setAdminDoneMsg, setTimeDoneMsg, smsSentMsg, 
+  temperatureAdjustmentMsgFormat, temperatureAdjustmentSetMsg, temperatureAlertMsg, temperatureThresholdsSetMsg, temperatureThresholdMsgFormat, 
+  tempInitMsg, unknownMsg, unknownNumberMsg
 };

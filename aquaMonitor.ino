@@ -5,6 +5,9 @@
 #include <EEPROMvar.h>
 #include <Wire.h>
 #include "DS1307.h"
+#include "aquaNet/interComMsg.h"
+#include "aquaNet/common.h"
+#include <ArduinoJson.h>
 
 // 'admin' phone number defined outside of open source file haha !
 // This file should contain a line in the likes of:
@@ -14,7 +17,7 @@
 // Compilation directives to enable/disable stuff like IR support
 // Beware, 'includes' for the matching libraries need to be commented / uncommented
 // In the first #if using these flags
-#define WITH_LCD_SUPPORT true      // About 1,6k prog, 30B RAM
+#define WITH_LCD_SUPPORT false      // About 1,6k prog, 30B RAM  TSTWIFI
 
 // Strings to store in progmem space to free variable space
 #include "./progmemStrings.h"
@@ -31,8 +34,9 @@ struct lightSchedule {
   int maxAcceptableValue;   // Max value for light sensor considered ok for this schedule
 };
 
-// If not declaring this prototype explicitly, arduino compiler will create one *before* the definition
-// of lightSchedule and issue a crappy error message
+// If not declaring this prototype explicitly before calling the function, arduino compiler
+// will create one *before* the definition of lightSchedule and issue a crappy error message
+// because the parameter will not have the right type.
 boolean checkLightSchedule(int lightLevel, lightSchedule schedule);
 
 #define PHONE_NUMBER_LENGTH 15
@@ -64,13 +68,12 @@ struct eepromConfig {
 
 #define ONE_STATUS_MSG_LENGTH 20
 struct displayData {
-  char temperatureMsg[ONE_STATUS_MSG_LENGTH + 1];
-  char powerMsg[ONE_STATUS_MSG_LENGTH + 1];
-  char lightMsg[ONE_STATUS_MSG_LENGTH + 1];
-  char levelMsg[ONE_STATUS_MSG_LENGTH + 1];
+  char statusMessage[300];
+  // the message is scrolling across the first display line
+  // offset keeps track of the first message char to display
   unsigned char offset = 0;
   // TODO size below should somehow be LCD width, but what if LCD disabled with compilation directives ?
-  char permanent[17]; // Message displayed permanently
+  char alertMessage[17]; // Message displayed permanently
   // Transient message will be displayed for short durations
   unsigned long transientStartDisplayTime=0;
   unsigned long transientDisplayDuration=2000; // 2 seconds
@@ -78,9 +81,20 @@ struct displayData {
   unsigned long lastRefresh = 0;
 } display;
 
+struct measureData {
+  int light = 0;
+  boolean lightAlert = false;
+  int powerLevel = 0;
+  boolean powerAlert = false;
+  int temperature; // decadegrees: 2500 for 25.00°
+  boolean temperatureAlert = false;
+  boolean waterLevelAlert = false;
+  boolean oneAlert = false;
+} measures;
+
 // Flags for services subscriptions and permissions
 #define FLAG_SERVICE_ALERT   0x01
-#define FLAG_SERVICE_EVENT   0x02
+#define FLAG_SERVICE_EVENT   0x02     // TODO : not implemented yet
 
 #define FLAG_ADMIN           0x80
 
@@ -93,7 +107,7 @@ GSMVoiceCall vcs;
 
 // LCD
 #if WITH_LCD_SUPPORT
-// #include are processed no matter what (known bug) : comment or uncomment them is the only way
+// TODO check if still true: #include are processed no matter what (known bug) : comment or uncomment them is the only way
 #include <LiquidCrystal.h>
 // initialize the library with the interface pins
 // GMS uses 2 and 3 (at least)
@@ -113,7 +127,8 @@ byte addr[MAX_DS1820_SENSORS][8];
 
 // Okay these globals are pretty bad and may still be the cause of a few bugs, but the
 // small amount of variable space on UNO left me with little choice.
-#define PROGMEM_MSG_MAX_SIZE 40
+// May be worth redesigning all this since using Mega, now...
+#define PROGMEM_MSG_MAX_SIZE 60
 char progMemMsg[PROGMEM_MSG_MAX_SIZE + 1];
 
 #define TEMPERATURE_CHECK_PERIOD 5000
@@ -136,18 +151,17 @@ unsigned long lastPowerCheck = lastTemperatureCheck;
 unsigned long lastSmsCheck = lastTemperatureCheck;
 
 // Check for incoming voice call: if not handled, will break SMS management
-#define CALL_CHECK_PERIOD 10000
+#define CALL_CHECK_PERIOD 6000
 unsigned long lastCallCheck = lastTemperatureCheck;
 
 // Max size of a received SMS
 #define MAX_SMS_LENGTH 40
-boolean gsmEnabled = true;
-
-boolean statusOK = true;
+boolean gsmEnabled = false;    // TSTWIFI
 
 #define LEVEL_PIN 11
 
-char serialMessage[60];
+char serialMessage[MAX_SERIAL_INPUT_MESSAGE];
+char serialMessageFromESP[MAX_SERIAL_INPUT_MESSAGE];
 
 // TODO: offer choice with DS1302 ?
 DS1307 clock; // The RTC handle to get date and time
@@ -155,7 +169,9 @@ DS1307 clock; // The RTC handle to get date and time
 // System initialization
 void setup(void) {
   serialMessage[0] = 0;
+  serialMessageFromESP[0] = 0;
   Serial.begin(9600);
+  Serial1.begin(9600);
 
   // Init pin with the level detector as input
   pinMode(LEVEL_PIN, INPUT);
@@ -224,28 +240,34 @@ void loop(void) {
   int incomingChar = 0;
   int length;
 
+  // Sensors are not checked at each cycle either.
+  if(checkElapsedDelay(now, lastLightCheck, LIGHT_CHECK_PERIOD)) {
+    checkLight();
+    lastLightCheck = now;
+  }
+  if(checkElapsedDelay(now, lastTemperatureCheck, TEMPERATURE_CHECK_PERIOD)) {
+    checkTemperature();
+    lastTemperatureCheck = now;
+  }
+  if(checkElapsedDelay(now, lastLevelCheck, LEVEL_CHECK_PERIOD)) {
+    checkWaterLevel();
+    lastLevelCheck = now;
+  }
+  if(checkElapsedDelay(now, lastPowerCheck, POWER_CHECK_PERIOD)) {
+    checkPower();
+    lastPowerCheck = now;
+  }
+  measures.oneAlert = measures.lightAlert || measures.powerAlert || measures.temperatureAlert || measures.waterLevelAlert;
+
   // Display is not refreshed at each cycle but only every refreshPeriod
   if(checkElapsedDelay(now, display.lastRefresh, display.refreshPeriod)) {
     refreshDisplay();
   }
 
-  // Sensors are not checked at each cycle either.
-  if(checkElapsedDelay(now, lastLightCheck, LIGHT_CHECK_PERIOD)) {
-    statusOK = checkLight() && statusOK;
-    lastLightCheck = now;
+  if(measures.oneAlert) {
+    sendAlert();
   }
-  if(checkElapsedDelay(now, lastTemperatureCheck, TEMPERATURE_CHECK_PERIOD)) {
-    statusOK = checkTemperature() && statusOK;
-    lastTemperatureCheck = now;
-  }
-  if(checkElapsedDelay(now, lastLevelCheck, LEVEL_CHECK_PERIOD)) {
-    statusOK = checkLevel() && statusOK;
-    lastLevelCheck = now;
-  }
-  if(checkElapsedDelay(now, lastPowerCheck, POWER_CHECK_PERIOD)) {
-    statusOK = checkPower() && statusOK;
-    lastPowerCheck = now;
-  }
+
   if(checkElapsedDelay(now, lastSmsCheck, SMS_CHECK_PERIOD)) {
     checkSMS();
     lastSmsCheck = millis(); // checkSMS is a bit slow.
@@ -255,24 +277,104 @@ void loop(void) {
     lastCallCheck = now;
   }
 
-  if(!statusOK) {
-    sendAlert();
-    statusOK = true;
+  // Check USB serial for incoming messages
+  if(readFromSerial(&Serial, serialMessage, 500)) {
+    processMessageFromSerial(serialMessage);
+    serialMessage[0] = 0;
   }
 
-  while (Serial.available() > 0) {
-    incomingChar = Serial.read();
-    if(incomingChar > 0) {
-      if((incomingChar == '\r') || (incomingChar == '\n')) {
-        processMessage(serialMessage, "");
-        serialMessage[0] = 0;
-      } else {
-        length = strlen(serialMessage);
-        serialMessage[length] = incomingChar;
-        serialMessage[length + 1] = 0;
-      }
+  // Check serial1 for incoming messages from wifi module
+  if(readFromSerial(&Serial1, serialMessageFromESP, 500)) {
+    processMessageFromESP(serialMessageFromESP);
+    serialMessageFromESP[0] = 0;
+  }
+
+}
+
+// Process a message sent by the ESP module
+// Messages starting with '@' are arduino commands, need to be processed like SMS received
+// Messages starting with '#' are ESP requests
+// Other messages just need to be forwarded to usb serial (debug and log stuff)
+void processMessageFromESP(char *message) {
+//Serial.println("got message");
+//Serial.println(message);
+  // Message not starting with '#' just needs to be forwarded to USB serial
+  char *colonPosition;
+  char *content;
+  char *firstChar = message;
+  char answer[2000];
+  if(*firstChar == '@') {
+    // The message sent by ESP is actually a command for the arduino like the one it gets from
+    // the usb serial or sms
+    firstChar++; // check after first # char
+    Serial.println(firstChar);
+    processMessageFromSerial(firstChar);
+  } else if(*firstChar == '#') {
+    // The message sent by ESP is a specific ESP request
+    firstChar++; // check after first # char
+    colonPosition = strchr(firstChar, ':');
+    if(colonPosition != NULL) {
+      content = colonPosition + 1;
     }
-  }  
+    if(strncmp(firstChar, REQUEST_IF_GSM, strlen(REQUEST_IF_GSM)) == 0) {
+      // esp wants to know if module is equipped with GSM
+      sprintf(answer, "%s:%d", REQUEST_IF_GSM, gsmEnabled);
+      Serial1.println(answer);
+    } else if(strncmp(firstChar, REQUEST_MEASURES, strlen(REQUEST_MEASURES)) == 0) {
+      char date[40]; // No need for 40, unless there is no rtc connected :)
+      char lightOn[15];
+      char lightOff[15]; // No need for 40, unless there is no rtc connected :)
+      Serial.println("ESP wants measures");
+      // esp wants to know measures to log them
+      // We'll pass a json object using ArduinoJson library by Benoît Blanchon
+      // size : https://rawgit.com/bblanchon/ArduinoJson/master/scripts/buffer-size-calculator.html
+      StaticJsonBuffer<400> jsonBuffer;
+      JsonObject& root = jsonBuffer.createObject();
+      root["temp"] = measures.temperature;
+      root["tempAlert"] = measures.temperatureAlert;
+      root["minTemp"] = config.temperatureLowThreshold;
+      root["maxTemp"] = config.temperatureHighThreshold;
+      root["tempAdj"] = config.temperatureAdjustment;
+      root["light"] = measures.light;
+      root["lightAlert"] = measures.lightAlert;
+      root["minOnLight"] = config.lightOn.minAcceptableValue;
+      root["maxOnLight"] = config.lightOn.maxAcceptableValue;
+      root["minOffLight"] = config.lightOff.minAcceptableValue;
+      root["maxOffLight"] = config.lightOff.maxAcceptableValue;
+      sprintf(lightOn, "%02d:%02d-%02d:%02d", config.lightOn.startHour, config.lightOn.startMinute, config.lightOn.endHour, config.lightOn.endMinute);
+      root["lightOn"] = lightOn;
+      sprintf(lightOff, "%02d:%02d-%02d:%02d", config.lightOff.startHour, config.lightOff.startMinute, config.lightOff.endHour, config.lightOff.endMinute);
+      root["lightOff"] = lightOff;
+      root["waterLevelAlert"] = measures.waterLevelAlert;
+      root["powerAlert"] = measures.powerAlert;
+      root["oneAlert"] = measures.oneAlert;
+      getCurrentDate(date);
+      root["date"] = date;
+      sprintf(answer, "%s:", REQUEST_MEASURES);
+      firstChar = answer;
+      firstChar += strlen(answer);
+      root.printTo(firstChar, sizeof(answer) - strlen(answer));      // ok, not pretty...
+      //Serial1.println(answer);
+      //Serial.println(answer);
+      //writeToSerial(&Serial, answer, 500);
+      writeToSerial(&Serial1, answer, 500);
+    }
+
+  } else {
+    // The message sent by ESP should just be sent to USB serial
+    //Serial.println(message);
+    writeToSerial(&Serial, message, 500);
+  }
+}
+
+// Process a message received by USB serial
+void processMessageFromSerial(char *message) {
+  if(*message == '#') {
+    // Simulates a message received from ESP: process it as such
+    processMessageFromESP(message);
+  } else {
+    processMessage(message, "");
+  }
 }
 
 // return true if current time is after given time + delay
@@ -291,23 +393,13 @@ boolean checkElapsedDelay(unsigned long now, unsigned long lastTime, unsigned lo
 }
 
 // Check water level on digital input. Returns false if low
-boolean checkLevel() {
-  boolean levelOK = true;
-  levelOK = (config.highLevelPinValue == digitalRead(LEVEL_PIN));
-  if(levelOK) {
-    sprintf(display.levelMsg, getProgMemMsg(LEVEL_HIGH_MSG));
-    deletePermanent(getProgMemMsg(LEVEL_ALERT_MSG));
-  } else {
-    sprintf(display.levelMsg, getProgMemMsg(LEVEL_LOW_MSG));
-    displayPermanent(getProgMemMsg(LEVEL_ALERT_MSG));
-  }
-  return(levelOK);
+void checkWaterLevel() {
+  measures.waterLevelAlert = !(config.highLevelPinValue == digitalRead(LEVEL_PIN));
 }
 
 // return true if temperature is within low and high thresholds
-boolean checkTemperature() {
-  boolean temperatureOK = true;
-  int highByte, lowByte, tReading, signBit, tc_100, whole, fract;
+void checkTemperature() {
+  int highByte, lowByte, tReading, signBit, tc_100;
   byte sensor = 0;
 
   byte i;
@@ -346,39 +438,27 @@ boolean checkTemperature() {
     tc_100 = (6 * tReading) + tReading / 4;    // multiply by (100 * 0.0625) or 6.25
     // user defined signed value to adjust temperature measure
     tc_100 += config.temperatureAdjustment;
-
-    whole = tc_100 / 100;  // separate off the whole and fractional portions
-    fract = tc_100 % 100;
-    sprintf(display.temperatureMsg, getProgMemMsg(TEMPERATURE_MSG_FORMAT), signBit ? '-' : '+', whole, fract < 10 ? 0 : fract);
-    //Serial.println(display.temperatureMsg);
+    measures.temperature = tc_100;
     if((tc_100 < config.temperatureLowThreshold) || (tc_100 > config.temperatureHighThreshold)) {
-      temperatureOK = false;
-      displayPermanent(getProgMemMsg(TEMPERATURE_ALERT_MSG));
+      measures.temperatureAlert = true;
     } else {
-      deletePermanent(getProgMemMsg(TEMPERATURE_ALERT_MSG));
+      measures.temperatureAlert = false;
     }
   }
-  return temperatureOK;
 }
 
 // Return true if main power is ok
 boolean checkPower() {
-  int powerLevel = 0;
-  boolean powerOK = true;
-  powerLevel = analogRead(MAIN_POWER_PIN);
+  measures.powerLevel = analogRead(MAIN_POWER_PIN);
   // If power level less than threshold => not ok
-  if(powerLevel < config.powerThreshold) {
-    powerOK = false;
-    displayPermanent(getProgMemMsg(POWER_OFF_MSG));
-    sprintf(display.powerMsg, getProgMemMsg(POWER_OFF_MSG));
+  if(measures.powerLevel < config.powerThreshold) {
+    measures.powerAlert = true;
   } else {
-    sprintf(display.powerMsg, getProgMemMsg(POWER_ON_MSG));
-    deletePermanent(getProgMemMsg(POWER_OFF_MSG));
+    measures.powerAlert = false;
   }
-  return(powerOK);
 }
 
-// check if light is ok depending on current time
+// Check if light level is within acceptable limits depending on current hour
 boolean checkLightSchedule(int lightLevel, lightSchedule schedule) {
   boolean result = true;
   unsigned int startMin;
@@ -409,21 +489,20 @@ boolean checkLightSchedule(int lightLevel, lightSchedule schedule) {
 }
 
 // Return true if light level is within boundaries depending on current time
-boolean checkLight() {
-  int lightLevel = 0;
-  boolean lightOK = true;
-  lightLevel = analogRead(LIGHT_PIN);
-  sprintf(display.lightMsg, getProgMemMsg(LIGHT_MSG_FORMAT), lightLevel);
+void checkLight() {
+  measures.light = analogRead(LIGHT_PIN);
+  measures.lightAlert = !checkLightSchedule(measures.light, config.lightOn) || !checkLightSchedule(measures.light, config.lightOff);
+}
 
-  lightOK = checkLightSchedule(lightLevel, config.lightOn) && checkLightSchedule(lightLevel, config.lightOff);
-
-  // If light level less than threshold during light on period => not ok
-  if(lightOK) {
-    deletePermanent(getProgMemMsg(LIGHT_ALERT_MSG));
-  } else {
-    displayPermanent(getProgMemMsg(LIGHT_ALERT_MSG));
+// Check for incoming voice call, in order to not break SMS
+void checkCall() {
+  switch (vcs.getvoiceCallStatus()) {
+    case RECEIVINGCALL:
+      vcs.answerCall();
+      delay(1000);
+      vcs.hangCall();
+      break;
   }
-  return(lightOK);
 }
 
 // Check for incoming voice call, in order to not break SMS
@@ -481,7 +560,10 @@ void checkSMS() {
 
 void processMessage(char *msgIn, char *from) {
   Serial.println(msgIn);
-  if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_INTERVAL))) {   // Sender wants to set his alert minimum interval (seconds)
+  // Messages starting with 'wifi:' are forwarded to wifi module
+  if(strncmp(msgIn, "wifi:", 5) == 0) {
+    Serial1.println(&(msgIn[5]));
+  } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_INTERVAL))) {   // Sender wants to set his alert minimum interval (seconds)
     setAlertInterval(from, msgIn);
   } else if(msgIn == strstr(msgIn, getProgMemMsg(IN_SMS_TEMP_ADJ))) {  // Sender wants to set temperature adjustment
     setTemperatureAdjustment(from, msgIn);
@@ -771,16 +853,13 @@ void unsubscribe(char *number, char *msgIn) {
 void sendAlert() {
   unsigned char i, flag;
   unsigned long now = millis();  // We don't want to send too many SMS
-  char txtMsg[160 + 1];
 
-  sprintf(txtMsg, getProgMemMsg(ALERT_MSG_FORMAT), display.permanent, display.temperatureMsg, display.lightMsg, display.levelMsg, display.powerMsg);
-  txtMsg[160] = 0; // just in case
   for(i=0; i < MAX_PHONE_NUMBERS; i++) {
     // If phone number initialized AND subscribed to the alert service
     if((config.registeredNumbers[i].number[0] != 0) && (0 != (config.registeredNumbers[i].permissionFlags & FLAG_SERVICE_ALERT)) ) {
       // If enough time since last alert SMS was sent to this number, send a new one
       if(checkElapsedDelay(now, config.registeredNumbers[i].lastAlertSmsTime, config.registeredNumbers[i].minAlertInterval)) {
-        sendSMS(config.registeredNumbers[i].number, txtMsg);
+        sendSMS(config.registeredNumbers[i].number, display.statusMessage);
         config.registeredNumbers[i].lastAlertSmsTime = now;
       }
     }
@@ -789,14 +868,7 @@ void sendAlert() {
 
 // Send an SMS with the status to the given phone number
 void sendStatus(char *toNumber) {
-  char txtMsg[5*ONE_STATUS_MSG_LENGTH + 15 + 1];
-  if(display.permanent[0] == 0) {
-    sprintf(txtMsg, "%s, %s, %s, %s.", display.temperatureMsg, display.lightMsg, display.levelMsg, display.powerMsg);
-  } else {
-    sprintf(txtMsg, "%s: %s, %s, %s, %s.", display.permanent, display.temperatureMsg, display.lightMsg, display.levelMsg, display.powerMsg);
-  }
-  txtMsg[5*ONE_STATUS_MSG_LENGTH + 15] = 0; // just in case
-  sendSMS(toNumber, txtMsg);
+  sendSMS(toNumber, display.statusMessage);
 }
 
 // Send any kind of SMS to any give number
@@ -823,13 +895,21 @@ void sendAbout(char *toNumber) {
   sendSMS(toNumber, getProgMemMsg(BUILD_MSG));
 }
 
+// Date as string but not localized (for ESP)
+void getCurrentDate(char *message) {
+  clock.getTime();
+  sprintf(message, "%4d/%02d/%02d %02d:%02d",
+     clock.year+2000, clock.month, clock.dayOfMonth,
+     clock.hour, clock.minute);
+
+}
+
 // Log config to Serial console, and optionally send by sms
 void displayConfig(boolean sendSMS, char *toNumber) {
   unsigned char i;
   char message[160];
   char strFlags[5];
   char space[] = ", ";
-  clock.getTime();
   if(!gsmEnabled || (toNumber[0] == 0)) {
     sendSMS = false;
   }
@@ -841,10 +921,11 @@ void displayConfig(boolean sendSMS, char *toNumber) {
     sms.print(message);
     sms.print(space);
   }
-
+  clock.getTime();
   sprintf(message, getProgMemMsg(CURRENT_DATE_FORMAT_MSG),
      clock.year+2000, clock.month, clock.dayOfMonth,
      clock.hour, clock.minute);
+
   Serial.println(message);
   if(sendSMS) {
     sms.print(message);
@@ -1031,42 +1112,86 @@ void resetConfig(char *toNumber) {
   sendSMS(toNumber, getProgMemMsg(CONFIG_RESET_MSG));
 }
 
-// In charge of displaying messages
+// In charge of displaying messages.
+// The scrolled message provides all measures, scrolling across the first display line
 void refreshDisplay() {
-  char message[100];
-  char scrolledMessage[100];
+  char scrolledMessage[200];
   char transferChar;
   int remaining;
   unsigned long now = millis();
+  char waterLevelMessage[50];
+  char powerMessage[50];
+  char format[50];
+  char temperature[6] ;
+
+  // AVR does not support %f format in *printf functions. Too bad.
+  sprintf(temperature, "%04d", measures.temperature);
+  temperature[5] = 0;
+  temperature[4] = temperature[3];
+  temperature[3] = temperature[2];
+  temperature[2] = '.';
+  display.alertMessage[0] = 0;
+  if(measures.lightAlert) {
+    strcpy(display.alertMessage, getProgMemMsg(LIGHT_ALERT_MSG));
+  }
+  if(measures.waterLevelAlert) {
+    strcpy(display.alertMessage, getProgMemMsg(LEVEL_ALERT_MSG));
+    strcpy(waterLevelMessage, getProgMemMsg(LEVEL_LOW_MSG));
+  } else {
+    strcpy(waterLevelMessage, getProgMemMsg(LEVEL_HIGH_MSG));
+  }
+  if(measures.temperatureAlert) {
+    strcpy(display.alertMessage, getProgMemMsg(TEMPERATURE_ALERT_MSG));
+  }
+  if(measures.powerAlert) {
+    strcpy(display.alertMessage, getProgMemMsg(POWER_ALERT_MSG));
+    strcpy(powerMessage, getProgMemMsg(POWER_OFF_MSG));
+  } else {
+    strcpy(powerMessage, getProgMemMsg(POWER_ON_MSG));
+  }
+  display.alertMessage[16] = 0;
+
+  if(measures.oneAlert) {
+    sprintf(display.statusMessage, getProgMemMsg(MEASURE_ALERT_MSG_FORMAT),
+                   display.alertMessage,
+                   temperature,
+                   waterLevelMessage,
+                   measures.light,
+                   powerMessage);
+  } else {
+    sprintf(display.statusMessage, getProgMemMsg(MEASURE_MSG_FORMAT),
+                   temperature,
+                   waterLevelMessage,
+                   measures.light,
+                   powerMessage);
+  }
 
   display.lastRefresh = millis();
+  // Do not send to serial as often !
   if(checkElapsedDelay(now, lastSerialStatus, SERIAL_STATUS_PERIOD)) {
-    Serial.print(display.temperatureMsg);
-    Serial.print(" ");
-    Serial.print(display.lightMsg);
-    Serial.print(" ");
-    Serial.print(display.levelMsg);
-    Serial.print(" ");
-    Serial.println(display.powerMsg);
+    Serial.println(display.statusMessage);
     lastSerialStatus = now;
   }
 
-  sprintf(message, "%s, %s, %s, %s, ", display.temperatureMsg, display.lightMsg, display.levelMsg, display.powerMsg);
-  remaining = strlen(message) - display.offset;
-  strncpy(scrolledMessage, message + display.offset, 16);
-  strncat(scrolledMessage, message, display.offset );
+  #if WITH_LCD_SUPPORT
+  // Handle scrolling message on display first line
+  strcat(display.statusMessage, ", "); // scrolling message has no begining, no end
+  remaining = strlen(display.statusMessage) - display.offset;
+  strncpy(scrolledMessage, display.statusMessage + display.offset, 16);
+  strncat(scrolledMessage, display.statusMessage, display.offset );
   scrolledMessage[16] = 0;
   display.offset++;
   if(remaining == 0) {
     display.offset = 0;
   }
-  #if WITH_LCD_SUPPORT
-  if(checkElapsedDelay(millis(), display.transientStartDisplayTime, display.transientDisplayDuration)) {
-    lcd.clear();
-    displayPermanent(NULL);
-  }
   lcd.setCursor(0,0);
   lcd.print(scrolledMessage);
+
+  if(checkElapsedDelay(millis(), display.transientStartDisplayTime, display.transientDisplayDuration)) {
+    lcd.clear();
+    displayAlertMessage();
+  }
+
   #endif
 }
 
@@ -1082,23 +1207,15 @@ void displayTransient(char *msg) {
   Serial.println(msg);
 }
 
-void displayPermanent(char *msg) {
-  if(msg != NULL) {
-    strncpy(display.permanent, msg, 16);
-    display.permanent[16] = 0;
-  }
-#if WITH_LCD_SUPPORT
-  lcd.setCursor(0,1);
-  lcd.print(display.permanent);
-#endif
-}
-
-void deletePermanent(char *msg) {
-  if(0 == strncmp(display.permanent, msg, 16))  {
-#if WITH_LCD_SUPPORT
-    lcd.clear();
-#endif
-    display.permanent[0] = 0;
+void displayAlertMessage() {
+  if(display.alertMessage[0] != 0) {
+    while(strlen(display.alertMessage) < 16) {
+      strcat(display.alertMessage, " ");
+    }
+    #if WITH_LCD_SUPPORT
+    lcd.setCursor(0,1);
+    lcd.print(display.alertMessage);
+    #endif
   }
 }
 
