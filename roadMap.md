@@ -12,7 +12,8 @@
 
 #Planned evolutions
 
-#V2.0
+#V2.0 (now in master branch)
+The software is mostly ready for V2 in master branch. Needs to make more settings accessible, and need schematics update (and may be new PCB)
 - Connects to home wifi network
 - Logs all measures to external website
 - expose a webApp allowing to see all data, and edit settings
@@ -24,4 +25,6 @@
 
 #V4.0
 - Any extra device will be able to create its own private wifi network to handle more devices
+Would be useful for people owning more than 5 tanks. I know one.
 (wifi component only accepts 4 simultaneous connections. Could multiplex, but less fun, and not as quick)
+
