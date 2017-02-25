@@ -3,8 +3,28 @@
 
 // TODO: module parameter, date parameters
 
-ini_set("display_errors", 1);
+//ini_set("display_errors", 1);
 require('../includes/utils.inc.php');
+
+if(isset($_REQUEST['h'])) {
+  $hours = intval($_REQUEST['h']);
+} else {
+  $hours = 12;
+}
+
+if(isset($_REQUEST['sd'])) {
+  $startDate = $_REQUEST['sd'];
+} else {
+  $startDate = date("y-m-d");
+}
+
+if(isset($_REQUEST['ed'])) {
+  $endDate = $_REQUEST['ed'];
+} else {
+  $endDate = date("y-m-d");
+}
+
+
 
 $moduleId = 1;   // TODO hardcoded for now.
 $stat = array();
@@ -13,9 +33,10 @@ $mysqli = connect();
 $stmt =  $mysqli->stmt_init();
 $stmt->prepare('select datadate, power, poweralert, waterlevel, waterlevelalert, '
      . ' lightlevel, lightlevelalert, temperature, temperaturealert '
-     . ' from aquanetstat where moduleid = ? and datadate > DATE_SUB(NOW(), INTERVAL 24 HOUR) order by statid ') OR die("Invalid statement");
+     . ' from aquanetstat where moduleid = ? and datadate >= STR_TO_DATE(?,\'%Y-%m-%d\') and datadate <= DATE_ADD(STR_TO_DATE(?,\'%Y-%m-%d\'), INTERVAL 1 DAY) order by statid ') OR die("Invalid statement");
 
-$stmt->bind_param("i", $moduleId);
+//$stmt->bind_param("i", $moduleId);
+$stmt->bind_param("iss", $moduleId, $startDate, $endDate);
 $stmt->execute();
 
 $stmt->bind_result($date, $power, $powerAlert, $waterLevel, $waterAlert,
@@ -25,7 +46,7 @@ while($row = $stmt->fetch()) {
   array_push($stat, array("date" => $date, "power" => $power, "powerAlert" => $powerAlert,
                "waterLevel" => $waterLevel, "waterLevelAlert" => $waterLevelAlert,
                "lightLevel" => $lightLevel, "lightLevelAlert" => $lightLevelAlert,
-               "temperature" => $temperature, "temperatureAlert" => $temperatureAlert));
+               "temperature" => $temperature, "temperatureAlert" => $temperatureAlert, "sd" => $startDate));
 
 }
 $stmt->free_result();

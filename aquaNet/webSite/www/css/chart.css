@@ -1,0 +1,20 @@
+.xaxis { font: 14px sans-serif;}
+.lightAxis { font: 14px sans-serif;}
+.tempAxis { font: 14px sans-serif; }
+
+.lightAxis text {
+  fill: steelblue;
+}
+.tempAxis text {
+  fill: red;
+}
+.lightLine {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 2px;
+}
+.tempLine {
+  fill: none;
+  stroke: red;
+  stroke-width: 2px;
+}
