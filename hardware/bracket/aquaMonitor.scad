@@ -37,10 +37,12 @@ armWidth = insertBorder+1 ;
 //body();
 
 // Insert
-insert();
+// insert();
+
+//lightShield();
 
 // Demo
-//demo();
+demo();
 
 
 
@@ -55,8 +57,32 @@ module demo() {
       insert();
     }
   }
+  translate([topX - wireTubeDiam + 1, (topY - railY)/4, 0]) {
+    rotate(180, [0, 1, 0]) {
+      lightShield();
+    }
+  }
 }
 
+
+module lightShield() {
+  difference() {
+    intersection() {
+      difference() {
+        sphere(d = wireTubeDiam + 6 , $fn=50);
+        sphere(d = wireTubeDiam + 2 , $fn=50);
+      }
+      translate([0, -wireTubeDiam, 0]) { 
+        cube([2*wireTubeDiam, 2*wireTubeDiam, 2*wireTubeDiam ]);
+      }
+    }
+    rotate(20, [0, 1, 0]) {
+      translate([-2*wireTubeDiam, -wireTubeDiam, 0]) {   
+        cube([2*wireTubeDiam, 2*wireTubeDiam, 2*wireTubeDiam ]);
+      }
+    }
+  }
+}
 
 module insert() { 
   extDiam = 9.5;
