@@ -17,7 +17,7 @@ Chart displaying evolution of parameters:<br/>
 Device installed:<br/>
 <img src="res/installedBlue-1024.jpg" width="600px"/>
 
-Although project comes with 3D files to print the triple sensor bracket (light, temperature and adjustable water level sensor) and case, you dont *need* a 3D printer, you can instead use a case from the market and design your own fixture for the sensors.
+Although project comes with 3D files to print the <a href="https://github.com/reivaxy/aquaMonitor/blob/master/hardware/bracket/aquaMonitorDemo.stl">triple sensor bracket (light, temperature and adjustable water level sensor)<a> and <a href="https://github.com/reivaxy/aquaMonitor/blob/master/hardware/case/case.stl">case</a>, you dont *need* a 3D printer, you can instead use a case from the market and design your own fixture for the sensors.
 
 A PCB design (for Fritzing http://fritzing.org/home/) is provided, you can either order the PCB, make it yourself, or use a prototyping board instead.
 
