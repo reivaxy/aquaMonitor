@@ -15,4 +15,4 @@ It uses jQuery, Backbone and Boostrap.
 
 Here is what the webApp currently looks like, showing data for one module, with an alert on the light level while editing a light setting.
 
-<img src="aquaNet.png" width="300px"/>
+<img src="../res/webApp.png" width="300px"/>
