@@ -1,4 +1,4 @@
-# aquaMonitor
+# <img src="res/logo.png"/>aquaMonitor
 
 Device to monitor a recifal aquarium (or reef tank) with an Arduino Mega board and send SMS alerts when vitals are bad.
 
