@@ -25,8 +25,8 @@ if(isset($_REQUEST['d'])) {
 </head>
 <body>
 <div id="form">
-  <input id="startDate" type="date" name="startDate" onChange="chart.getData();"/>
-  <input id="endDate" type="date" name="endDate" onChange="chart.getData();"/>
+  <span id="startDate"><input type="date" name="startDate" onChange="chart.getData();"/></span>
+  <span id="endDate"><input type="date" name="endDate" onChange="chart.getData();"/></span>
 </div>
 
 <script>

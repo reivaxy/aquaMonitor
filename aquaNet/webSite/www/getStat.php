@@ -6,25 +6,19 @@
 //ini_set("display_errors", 1);
 require('../includes/utils.inc.php');
 
-if(isset($_REQUEST['h'])) {
-  $hours = intval($_REQUEST['h']);
-} else {
-  $hours = 12;
-}
-
+// Start date
 if(isset($_REQUEST['sd'])) {
   $startDate = $_REQUEST['sd'];
 } else {
-  $startDate = date("y-m-d");
+  $startDate = '2016-10-04'; //date("y-m-d");
 }
 
+// End date
 if(isset($_REQUEST['ed'])) {
   $endDate = $_REQUEST['ed'];
 } else {
-  $endDate = date("y-m-d");
+  $endDate = '2016-10-06'; // date("y-m-d");
 }
-
-
 
 $moduleId = 1;   // TODO hardcoded for now.
 $stat = array();

@@ -52,14 +52,14 @@ AquaNetChart.prototype.getData = function getData() {
   var that = this;
   var now = new Date();
   var today = dateFormat(now, "yyyy-mm-dd");
-  var startDateElt = document.querySelector('#startDate');
+  var startDateElt = document.querySelector('#startDate input');
   if (!startDateElt.value) {
-    startDateElt.value = today;
+    startDateElt.value = '2016-10-04'; // today;
   }
   var startDate = startDateElt.value;
-   var endDateElt = document.querySelector('#endDate');
+   var endDateElt = document.querySelector('#endDate input');
   if (!endDateElt.value) {
-    endDateElt.value = today;
+    endDateElt.value = '2016-10-06'; // today;
   }
   var endDate = endDateElt.value;
   
