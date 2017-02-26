@@ -1,0 +1,18 @@
+body {
+  font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+
+.header {
+  height: 100px;
+}
+.header .logo {
+  background-image: url("../img/aquaMonitorLogo64px.png");
+  width: 64px;
+  height: 64px;
+  position:absolute;
+}
+
+.header .title {
+  font-size: 3em;
+  text-align: center;
+}

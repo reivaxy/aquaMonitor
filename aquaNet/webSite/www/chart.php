@@ -13,6 +13,7 @@ if(isset($_REQUEST['d'])) {
 <html>
 <meta charset="utf-8">
 <head>
+  <link href='css/page.css' rel='stylesheet'/>
   <link href='css/chart.css' rel='stylesheet'/>
   <link href='css/localization.css' rel='stylesheet'/>
 
@@ -24,6 +25,8 @@ if(isset($_REQUEST['d'])) {
   
 </head>
 <body>
+<?php include ('header.php'); ?>  
+
 <div id="form">
   <span id="startDate"><input type="date" name="startDate" onChange="chart.getData();"/></span>
   <span id="endDate"><input type="date" name="endDate" onChange="chart.getData();"/></span>
