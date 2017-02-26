@@ -49,17 +49,19 @@ demo();
 
 // Insert positionned within bracket, for demo, not printing.
 module demo() {
-  body();
-  translate([topX - topRecessX - railZ + railWall,  
-            insertWidth + (topY - railY)/2 + railWall,
-            railX - insertLength -1]) {
-    rotate([180, -90, 0]) {
-      insert();
+  rotate([0, 180, 0]) {
+    body();
+    translate([topX - topRecessX - railZ + railWall,  
+              insertWidth + (topY - railY)/2 + railWall,
+              railX - insertLength -1]) {
+      rotate([180, -90, 0]) {
+        insert();
+      }
     }
-  }
-  translate([topX - wireTubeDiam + 1, (topY - railY)/4, 0]) {
-    rotate(180, [0, 1, 0]) {
-      lightShield();
+    translate([topX - wireTubeDiam + 1, (topY - railY)/4, 0]) {
+      rotate(180, [0, 1, 0]) {
+        lightShield();
+      }
     }
   }
 }
