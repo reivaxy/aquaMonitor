@@ -7,10 +7,15 @@
 - logs info on serial line
 - LCD display 2x20 with measures and messages
 - battery backup
-- extra phone number registration
+- extra phone numbers subscription to get alerts
 
 
 #Planned evolutions
+
+Hardware stuff:
+- Investigate replacing LCD screen with Oled screen. Ordered for prototyping ;)
+- replace the 3 jack sockets with a DB15 socket ? 
+
 
 #V2.0 (now in master branch)
 The software is mostly ready for V2 in master branch. Needs to make more settings accessible, and need schematics update (and may be new PCB)
