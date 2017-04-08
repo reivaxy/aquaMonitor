@@ -124,13 +124,12 @@ $(document).ready(function() {
       $('body').addClass("editing");
       e.stopPropagation();
     },
-    toggleSettings: function() {
-      this.closeEditors();
-      $("body").toggleClass("showSettings");
+    toggleSettings: function(e) {
+      this.closeEditors(e);
+      $(e.target).parents('.module').toggleClass("showSettings");
     },
     closeEditors: function(e) {
-      $('.editor').hide();
-      $('body').removeClass("editing");
+      $(e.target).parents('.module').find('.editor').hide();
     },
     refreshData: function() {
       fetch();
@@ -140,7 +139,7 @@ $(document).ready(function() {
     },
 
     saveSetting: function(e) {
-      this.closeEditors();
+      this.closeEditors(e);
       var message = "";
       // when handling several modules, need to make sure we target the right one's DOM
       var parent = $(e.target).parents("div.setting").first();

@@ -145,8 +145,16 @@ span.icon.icon-smile {
   opacity: 1;
   cursor: default;
 }
-body.showSettings .icon.icon-pencil {
+.module.showSettings .icon.icon-pencil {
   display: block;
+}
+
+.module.showSettings .setting {
+  display: block;
+}
+
+.module.showSettings .icon-cog {
+  color: red;
 }
 
 .setting {
@@ -157,10 +165,3 @@ body.showSettings .icon.icon-pencil {
   display: block;
 }
 
-body.showSettings .setting {
-  display: block;
-}
-
-body.showSettings .icon-cog {
-  color: red;
-}
