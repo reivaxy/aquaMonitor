@@ -13,13 +13,20 @@
 #Planned evolutions
 
 Hardware stuff:
-- Investigate replacing LCD screen with Oled screen. Ordered for prototyping ;)
-- replace the 3 jack sockets with a DB15 socket ? 
+- Investigate replacing LCD screen with Oled screen ?. Ordered for prototyping, here is the look:
+
+<img src="res/20170416_103621.jpg" width="300px"/> 
+
+  Nice thing is low consumption.
+
+- replace the 3 jack sockets with a DB15 socket ? Mechanical issue to fix on the case if wires are soldered. Need connectors :(
 
 
 #V2.0 (now in master branch)
-The software is mostly ready for V2 in master branch. Needs to make more settings accessible, and need schematics update (and may be new PCB)
-- Connects to home wifi network
+The software is mostly ready for V2 in master branch. Needs to make more settings accessible, and need schematics update (and new PCB)
+- Connects to home wifi network, using ESP8266
+<img src="res/wifi.jpg" width="300px"/> 
+
 - Logs all measures to external website
 - expose a webApp allowing to see all data, and edit settings
 
