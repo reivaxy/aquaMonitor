@@ -24,6 +24,12 @@ A PCB design (for Fritzing http://fritzing.org/home/) is provided, you can eithe
 Disclaimer: This system description is provided with no warranty whatsoever. If you use it, you accept to do so at your own risks, should a bug or any event be the cause of a malfunction.
 Originally supposed to run on a UNO board, this project does not take full advantage of more advanced Mega board features.
 
+# Libraries to add:
+* MAX31850 OneWire (adafruit)
+* EEPROMx
+* RTC (included in this repo, not sure where it comes from)
+* ArduinoJson (https://github.com/bblanchon/ArduinoJson)
+
 # Available features
 * Temperature periodical measurement
 * Light periodical measurement
