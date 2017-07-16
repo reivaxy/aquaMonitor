@@ -17,7 +17,7 @@
 // Compilation directives to enable/disable stuff like IR support
 // Beware, 'includes' for the matching libraries need to be commented / uncommented
 // In the first #if using these flags
-#define WITH_LCD_SUPPORT false      // About 1,6k prog, 30B RAM  TSTWIFI
+#define WITH_LCD_SUPPORT true      // About 1,6k prog, 30B RAM  TSTWIFI
 
 // Strings to store in progmem space to free variable space
 #include "./progmemStrings.h"
@@ -156,7 +156,7 @@ unsigned long lastCallCheck = lastTemperatureCheck;
 
 // Max size of a received SMS
 #define MAX_SMS_LENGTH 40
-boolean gsmEnabled = false;    // TSTWIFI
+boolean gsmEnabled = true;    // TSTWIFI
 
 #define LEVEL_PIN 11
 
@@ -531,12 +531,16 @@ void checkSMS() {
       sms.flush();
     } else {
       // Read message bytes
-      while ((c = sms.read()) && (cptr < MAX_SMS_LENGTH)) {
+      while (c = sms.read()) {
         // If uppercase, convert to lowercase
         if ((c > 64) && (c < 91)) {
           c = c + 32;
         }
-        msgIn[cptr++] = c;
+        // To be able to delete a SMS, all characters must be read
+        // But only keep the max handled count
+        if (cptr < MAX_SMS_LENGTH) {
+          msgIn[cptr++] = c;
+        }
       }
       msgIn[cptr] = 0;
       // Delete message from modem memory
@@ -598,7 +602,9 @@ void processMessage(char *msgIn, char *from) {
     setTime(from, msgIn);
   } else {
     displayTransient(getProgMemMsg(UNKNOWN_MSG));
-    sendSMS(from, getProgMemMsg(UNKNOWN_MSG));
+    // Some stupid spam services send back a message each time
+    // you answer them, so, do not send unknown message :(
+ //   sendSMS(from, getProgMemMsg(UNKNOWN_MSG));
   }
 }
 

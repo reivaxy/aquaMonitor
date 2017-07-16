@@ -1,5 +1,5 @@
 <?
-ini_set("display_errors", 1);
+// ini_set("display_errors", 1);
 require('../includes/utils.inc.php');
 
 $json = file_get_contents('php://input');

@@ -6,7 +6,6 @@
 #  - start with the message name (the one used in aquamonito.ino)
 #  - followed by a space
 #  - followed by the message enclosed in double quotes.
-
 ACCESS_DENIED_MSG "Access denied"
 ADDR_ERR_MSG "Error addr 0"
 ALERT_MSG_FORMAT "ALERT - %s: %s, %s, %s, %s. "
@@ -84,5 +83,5 @@ TEMPERATURE_ALERT_MSG "Temp Alert"
 TEMPERATURE_THRESHOLDS_SET_MSG "Temp thresholds set (save ?)"
 TEMPERATURE_THRESHOLD_MSG_FORMAT "Temp: %d %d"
 TEMP_INIT_MSG "DS1820 Test"
-UNKNOWN_MSG "What ???"
+UNKNOWN_MSG "What ?"
 UNKNOWN_NUMBER_MSG "Unknown number"
