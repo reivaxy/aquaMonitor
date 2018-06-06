@@ -1,8 +1,10 @@
 # <img src="res/logo.png"/>aquaMonitor
 
-Warning: this project is asleep, while I'm working on iotinator which should replace it with much better modular architecture, smaller and cheaper components, and many more features. 
+### Warning: I'm no longer working on this project, I'm replacing it with iotinator (https://github.com/reivaxy/iotinator) which is not focused on aquarium monitoring but provides a framework to monitor and/or control "anything" in your house (including aquariums), with a modular architecture, smaller and cheaper components.
 
-The esp8266 version will never be more than a prototype, while the earlier version is fully functional, two devices currently running 24/7 since spring 2015.)
+The esp8266 evolution (which is working) will never be more than a prototype, while the earlier version (No wifi, only in and out SMS) is fully functional, two devices currently running 24/7 since spring 2015.)
+
+
 
 AquaMonitor is a device to monitor a recifal aquarium (or reef tank) with an Arduino Mega board and send SMS alerts when vitals are bad.
 
