@@ -1,3 +1,4 @@
+void loop()  __attribute__((__optimize__("O2")));
 
 #include <OneWire.h>
 #include <GSM.h>
@@ -464,12 +465,16 @@ void checkSMS() {
       sms.flush();
     } else {
       // Read message bytes
-      while ((c = sms.read()) && (cptr < MAX_SMS_LENGTH)) {
+      while (c = sms.read()) {
         // If uppercase, convert to lowercase
         if ((c > 64) && (c < 91)) {
           c = c + 32;
         }
-        msgIn[cptr++] = c;
+        // To be able to delete a SMS, all characters must be read
+        // But only keep the max handled count
+        if (cptr < MAX_SMS_LENGTH) {
+          msgIn[cptr++] = c;
+        }
       }
       msgIn[cptr] = 0;
       // Delete message from modem memory
@@ -528,7 +533,9 @@ void processMessage(char *msgIn, char *from) {
     setTime(from, msgIn);
   } else {
     displayTransient(getProgMemMsg(UNKNOWN_MSG));
-    sendSMS(from, getProgMemMsg(UNKNOWN_MSG));
+    // Some stupid spam services send back a message each time
+    // you answer them, so, do not send unknown message :(
+ //   sendSMS(from, getProgMemMsg(UNKNOWN_MSG));
   }
 }
 
@@ -1034,7 +1041,7 @@ void resetConfig(char *toNumber) {
 // In charge of displaying messages
 void refreshDisplay() {
   char message[100];
-  char scrolledMessage[100];
+  char scrolledMessage[200];
   char transferChar;
   int remaining;
   unsigned long now = millis();
