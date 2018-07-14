@@ -466,17 +466,20 @@ void checkSMS() {
     } else {
       // Read message bytes
       while (c = sms.read()) {
-        // If uppercase, convert to lowercase
-        if ((c > 64) && (c < 91)) {
-          c = c + 32;
-        }
         // To be able to delete a SMS, all characters must be read
         // But only keep the max handled count
+        Serial.print(c);
         if (cptr < MAX_SMS_LENGTH) {
+          // If uppercase, convert to lowercase
+          if ((c > 64) && (c < 91)) {
+            c = c + 32;
+          }
           msgIn[cptr++] = c;
         }
       }
+      Serial.println("");
       msgIn[cptr] = 0;
+
       // Delete message from modem memory
       sms.flush();
       processMessage(msgIn, from);
