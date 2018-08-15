@@ -53,24 +53,24 @@ Originally supposed to run on a UNO board, this project does not take full advan
 # Some pictures 
 
 Prototype (at the time it could run on a UNO board):<br/>
-<img src="http://www.adgjm.eu/img/github/aquaMonitor-1024.jpg" width="400px"/><br/>
+<img src="resources/aquaMonitor-1024.jpg" width="400px"/><br/>
 
 <br/><br/>
 Finished:<br/>
-<img src="http://adgjm.eu/img/github/finished.jpg" width="400px"/>
+<img src="resources/finished.jpg" width="400px"/>
 
 <br/><br/>
 Installed:<br/>
-<img src="http://adgjm.eu/img/github/installed.jpg" width="400px"/>
+<img src="resources/installed.jpg" width="400px"/>
 
 <br/><br/>
 Sensors:<br/>
-<img src="http://adgjm.eu/img/github/sensors.jpg" width="400px"/>
+<img src="resources/sensors.jpg" width="400px"/>
 
 <br/><br/>
 SMS exemples:<br/>
 SMS sent by user are yellow, replies sent by device are blue.<br/>
-<img src="http://adgjm.eu/img/github/sms.png" width="300px"/>
+<img src="resources/sms.png" width="300px"/>
 
 #License
 
