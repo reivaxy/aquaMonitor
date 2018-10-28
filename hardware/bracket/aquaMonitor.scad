@@ -1,5 +1,5 @@
 
-glassX = 6;
+glassX = 10;
 railZ = 6;
 railY = 20;
 railX = 70;
@@ -17,7 +17,7 @@ pawlTeethOffset = sqrt(pow(pawlTeeth, 2)/2);
 sphereD = 6;
 topRecessX = 15;
 levelWireTubeDiam = 5;
-wireTubeDiam = 6;
+wireTubeDiam = 7;
 
 topZ = 10;
 topX = glassX + 4 + 2 * railZ + topRecessX;
@@ -26,7 +26,7 @@ topY = 44;
 insertLength = 23.5;
 insertBorder = 3;
 insertWidth = railY - 2*railWall -0.3;
-insertHeight = railZ - 2*railWall -0.6;
+insertHeight = railZ - 2*railWall -0.1;
 insertPawlWidth = 2;
  
 armHeight = 24;
@@ -34,15 +34,16 @@ armWidth = insertBorder+1 ;
 
 
 // Bracket body
-//body();
+//+body();
+
 
 // Insert
-// insert();
+insert();
 
 //lightShield();
 
 // Demo
-demo();
+//demo();
 
 
 
@@ -94,11 +95,11 @@ module insert() {
     cube([insertLength, insertWidth, insertHeight]);
     translate([insertBorder, insertBorder, -0.5]) {
       cube([insertLength - 2*insertBorder,
-         insertWidth - 2*insertBorder, insertHeight + 1]);  
+         insertWidth - 2*insertBorder, insertHeight + 3]);  
     }
   }
   // Pawl with tooth
-  pawlHeight = 2*insertHeight + 2;
+  pawlHeight = 2*insertHeight + 1;
   translate([0, (insertWidth - insertPawlWidth)/2, 0]) {
     pawlLength = insertLength - insertBorder - 1.2;
     cube([pawlLength, insertPawlWidth, pawlHeight]);
@@ -148,7 +149,10 @@ module insert() {
 
 module body() { 
   difference() {
-    cube([topX, topY, topZ]);
+    union() {
+      cube([topX, topY, topZ]);
+      cube([topX + 15, (topY - railY)/2, topZ]);
+    }
     translate([topX - topRecessX, (topY - railY)/2, -0.5])
       cube([topRecessX + 1, railY, topZ + 1]);
     
@@ -158,17 +162,30 @@ module body() {
         cylinder(d=levelWireTubeDiam, h=topX + 1, $fn=50);
     
     // Horizontal hole for light sensor wires
-    translate([-2, (topY - railY)/4, topZ/2])
-      rotate(90, [0, 1, 0])
-        cylinder(d=wireTubeDiam, h=topX, $fn=50);
-    // Vertical hole for light sensor
-    translate([topX - wireTubeDiam + 1 , (topY - railY)/4, -topZ/2])
-      cylinder(d=wireTubeDiam+1.5, h=topZ, $fn=50);    
+    translate([-2, (topY - railY)/4, topZ/2]) {
+      rotate(90, [0, 1, 0]) {
+        difference() {
+          cylinder(d=wireTubeDiam, h=topX + 17, $fn=50);
+            translate([-wireTubeDiam*2, -wireTubeDiam*2, topX + 26]) {
+              rotate(45, [0, 1, 0]) {
+                cube([wireTubeDiam*4, wireTubeDiam*4, 10]);
+            }
+          }
+        }
+      }
+    }
+    // inclined cut for light sensor
+    translate([topX + 5.5 , -6, 0])
+      rotate(45, [0, 1, 0])
+        cube([20, 4*topZ, 4*topZ]);
+ 
+    
     
     // Horizontal hole for temperature sensor wires
     translate([-2, topY - (topY - railY)/4, topZ/2])
       rotate(90, [0, 1, 0])
         cylinder(d=wireTubeDiam, h=topX, $fn=50);
+    
     // Vertical hole for temperature sensor
     translate([topX - wireTubeDiam + 1 , topY - (topY - railY)/4, topZ/2])
       cylinder(d=wireTubeDiam+1, h=topZ, $fn=50);     
