@@ -1,4 +1,6 @@
 
+Warning: this project is asleep, while I'm working on iotinator which should replace it with much better modular architecture, smaller and cheaper components, and many more features. The esp8266 version is still a prototype, while the earlier version is fully functional, two devices currently running 24/7 since spring 2015.)
+
 #V1.0 2016/09
 - Full config via SMS
 - config saved in EEPROM
@@ -30,13 +32,16 @@ The software is mostly ready for V2 in master branch. Needs to make more setting
 - Logs all measures to external website
 - expose a webApp allowing to see all data, and edit settings
 
-#V3.0
+The features below will be implemented in the "iotinator" project (ok sorry but it's hard to come up with a good name).
+~~#V3.0
 - Creates own private wifi network
 - Monitors extra aquaMonitor devices connections. These ones won't have a GSM circuit, only wifi.
-- Handles all connected devices to forward them configuration messages, and transmit their alerts by SMS.
+- Handles all connected devices to forward them configuration messages, and transmit their alerts by SMS.~~
 
-#V4.0
+~~#V4.0
 - Any extra device will be able to create its own private wifi network to handle more devices
 Would be useful for people owning more than 5 tanks. I know one.
-(wifi component only accepts 4 simultaneous connections. Could multiplex, but less fun, and not as quick)
+(wifi component only accepts 4 simultaneous connections. Could multiplex, but less fun, and not as quick)~~
+
+
 

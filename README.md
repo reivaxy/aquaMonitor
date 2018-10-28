@@ -1,10 +1,16 @@
 # <img src="res/logo.png"/>aquaMonitor
 
-Device to monitor a recifal aquarium (or reef tank) with an Arduino Mega board and send SMS alerts when vitals are bad.
+### Warning: I'm no longer working on this project, I'm replacing it with iotinator (https://github.com/reivaxy/iotinator) which is not focused on aquarium monitoring but provides a framework to monitor and/or control "anything" in your house (including aquariums), with a modular architecture, smaller and cheaper components.
+
+The esp8266 evolution (which is working) will never be more than a prototype, while the earlier version (No wifi, only in and out SMS) is fully functional, two devices currently running 24/7 since spring 2015.)
+
+
+
+AquaMonitor is a device to monitor a recifal aquarium (or reef tank) with an Arduino Mega board and send SMS alerts when vitals are bad.
 
 Monitors light level, temperature, water level, main power failure, and sends SMS to all registered mobile phone numbers when configurable thresholds are reached.
 
-Settings (thresholds for light and temperature, light schedule, ...) are all managed through sending SMS, or via a web application.
+Settings (thresholds for light and temperature, light schedule, ...) are all managed through sending SMS (or via a web application for the prototype with ESP8266)
 
 WebApp showing a light level alert | Example of SMS communication
 -------|-------
