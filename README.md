@@ -63,7 +63,7 @@ Originally supposed to run on a UNO board, this project does not take full advan
   * 'save': save the configuration (light schedule and level, temp range, subs, admin, ...) to EEPROM
   * 'schedule hh:ss - hh:ss' : set the time span during which light should be above threshold
   * 'status': send SMS back with current measures
-  * 'sub reset': resets all subscriptions (admin only)
+  * 'reset sub': resets all subscriptions (admin only)
   * 'sub xxx' : subscribe to a service (alert, event)
   * 'subs' : send back list of subscribed phone numbers (admin only)
   * 'temp XXX YYY': set the low (XXX) and high (YYY) thresholds for temperature
