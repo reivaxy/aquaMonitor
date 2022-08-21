@@ -1,5 +1,5 @@
 
-glassX = 10;
+glassX = 6;
 railZ = 6;
 railY = 20;
 railX = 70;
@@ -34,16 +34,16 @@ armWidth = insertBorder+1 ;
 
 
 // Bracket body
-//+body();
+//body();
 
 
 // Insert
-insert();
+//insert();
 
 //lightShield();
 
 // Demo
-//demo();
+demo();
 
 
 
@@ -61,7 +61,7 @@ module demo() {
     }
     translate([topX - wireTubeDiam + 1, (topY - railY)/4, 0]) {
       rotate(180, [0, 1, 0]) {
-        lightShield();
+        //lightShield();
       }
     }
   }
