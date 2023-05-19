@@ -1,6 +1,8 @@
 # aquaMonitor
 Monitoring a recifal aquarium with an Arduino Mega board, and sending alerts by SMS
 
+### Warning: I'm no longer working on this project, I'm replacing it with iotinator (https://github.com/reivaxy/iotinator) which is not focused on aquarium monitoring but provides a framework to monitor and/or control "anything" in your house (including aquariums), with a modular architecture, smaller and cheaper components.
+
 Monitors light, temperature, and water level, main power failure, and sends an SMS to a registered mobile phone number when configurable thresholds are reached.
 
 All configuration handled through SMS.
