@@ -1,8 +1,14 @@
 # <img src="res/logo.png"/>aquaMonitor
 
-### Warning: I'm no longer working on this project, I'm replacing it with iotinator (https://github.com/reivaxy/iotinator) which is not focused on aquarium monitoring but provides a framework to monitor and/or control "anything" in your house (including aquariums), with a modular architecture, smaller and cheaper components.
-
-The esp8266 evolution (which is working) will never be more than a prototype, while the earlier version (No wifi, only in and out SMS) is fully functional, two devices currently running 24/7 since spring 2015.)
+> [!CAUTION]
+> This device no longer works due to GPRS/2G networks being shut down a bit everywhere.
+>
+> Two of them worked for nearly 10 years!
+>
+> The esp8266 evolution (which is working) will never be more than a prototype.
+> 
+> To replace this device, I will start a new project based on ESP32, with e-paper touch screen, 3G/4G connection... at some point.
+> 
 
 
 
